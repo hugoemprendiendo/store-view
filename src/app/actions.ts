@@ -29,7 +29,18 @@ export async function transcribeAudio(input: TranscribeAudioInput) {
 
 export async function createIncident(data: Omit<Incident, 'id' | 'createdAt'>) {
     try {
-        const newIncident = await dbCreateIncident(data);
+        // The form passes the full data URI for the photo, but we just want to store it for now.
+        // In a real app, you'd upload this to a storage service (e.g., Firebase Storage)
+        // and store the URL. For this demo, we'll just pass it through.
+        const incidentToCreate = {
+            ...data,
+            photoUrl: data.photo, // 'photo' from form is the data URI.
+            photoHint: 'user uploaded',
+        };
+        delete incidentToCreate.photo;
+
+
+        const newIncident = await dbCreateIncident(incidentToCreate);
         revalidatePath('/');
         revalidatePath(`/branches/${data.branchId}`);
         return { success: true, data: newIncident };
@@ -54,5 +65,3 @@ export async function updateIncidentStatus(id: string, status: Incident['status'
         return { success: false, error: 'Failed to update incident status.' };
     }
 }
-
-    

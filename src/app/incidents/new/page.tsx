@@ -1,18 +1,35 @@
-import { Header } from '@/components/layout/header';
-import { IncidentForm } from '@/components/incidents/incident-form';
-import { Suspense } from 'react';
+'use client';
 
-function IncidentFormWrapper() {
-  return <IncidentForm />;
-}
+import { useState } from 'react';
+import { Header } from '@/components/layout/header';
+import { IncidentFormStep1 } from '@/components/incidents/incident-form-step-1';
+import { IncidentFormStep2 } from '@/components/incidents/incident-form-step-2';
+
+export type IncidentData = {
+  photoDataUri?: string;
+  audioTranscription?: string;
+  textDescription?: string;
+};
 
 export default function NewIncidentPage() {
+  const [step, setStep] = useState(1);
+  const [incidentData, setIncidentData] = useState<IncidentData | null>(null);
+
+  const handleStep1Complete = (data: IncidentData) => {
+    setIncidentData(data);
+    setStep(2);
+  };
+
+  const handleBack = () => {
+    setIncidentData(null);
+    setStep(1);
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <Header title="Report New Incident" />
-      <Suspense fallback={<p>Loading form...</p>}>
-        <IncidentFormWrapper />
-      </Suspense>
+      {step === 1 && <IncidentFormStep1 onStepComplete={handleStep1Complete} />}
+      {step === 2 && incidentData && <IncidentFormStep2 incidentData={incidentData} onBack={handleBack} />}
     </div>
   );
 }
