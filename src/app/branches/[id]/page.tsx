@@ -1,5 +1,4 @@
 'use client';
-// @ts-nocheck
 
 import { useState, useEffect } from 'react';
 import { getBranchById, getIncidentsByBranch } from '@/lib/data';
@@ -70,7 +69,7 @@ export default function BranchDetailPage() {
         title: 'Estado Actualizado',
         description: `El estado de la incidencia cambió a "${newStatus}".`,
       });
-      // Force a router refresh to re-fetch server data
+      // Force a router refresh to re-fetch server data in other pages
       router.refresh();
     } else {
       // Revert on failure
