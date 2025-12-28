@@ -22,6 +22,14 @@ export type Incident = {
   createdAt: string;
 };
 
+export type UserProfile = {
+  id: string;
+  name: string;
+  email: string;
+  role: 'user' | 'superadmin';
+  createdAt: string;
+}
+
 export const IncidentCategories = [
   'Equipo de Cocina',
   'Punto de Venta (POS)',

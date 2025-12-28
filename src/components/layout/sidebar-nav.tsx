@@ -10,22 +10,30 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
-import { Building2, LayoutGrid, Settings, Store, LogOut } from 'lucide-react';
+import { Building2, LayoutGrid, Settings, Store, LogOut, Users } from 'lucide-react';
 import { useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
+import { useUserProfile } from '@/hooks/useUserProfile';
 
 
 const links = [
   { href: '/', label: 'Panel de Control', icon: LayoutGrid },
   { href: '/branches', label: 'Sucursales', icon: Building2 },
-  { href: '/settings', label: 'Configuración', icon: Settings },
 ];
+
+const adminLinks = [
+    { href: '/admin/users', label: 'Usuarios', icon: Users },
+]
+
+const settingsLink = { href: '/settings', label: 'Configuración', icon: Settings };
+
 
 export function SidebarNav() {
   const pathname = usePathname();
   const auth = useAuth();
   const { toast } = useToast();
+  const { userProfile, isLoading } = useUserProfile();
 
   const handleSignOut = async () => {
     try {
@@ -70,6 +78,30 @@ export function SidebarNav() {
               </Link>
             </SidebarMenuItem>
           ))}
+          {!isLoading && userProfile?.role === 'superadmin' && adminLinks.map((link) => (
+             <SidebarMenuItem key={link.href}>
+              <Link href={link.href}>
+                <SidebarMenuButton
+                  isActive={pathname === link.href}
+                  tooltip={link.label}
+                >
+                  <link.icon />
+                  <span>{link.label}</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+          ))}
+           <SidebarMenuItem>
+              <Link href={settingsLink.href}>
+                <SidebarMenuButton
+                  isActive={pathname === settingsLink.href}
+                  tooltip={settingsLink.label}
+                >
+                  <settingsLink.icon />
+                  <span>{settingsLink.label}</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
