@@ -27,6 +27,7 @@ service cloud.firestore {
       // Ensure user data exists and has assignedBranches before checking.
       return isSignedIn() && 
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             'assignedBranches' in getUserData(request.auth.uid) &&
              branchId in getUserData(request.auth.uid).assignedBranches;
     }
 
