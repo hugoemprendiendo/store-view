@@ -33,6 +33,7 @@ export function IncidentFormStep1({ onStepComplete }: IncidentFormStep1Props) {
     const [photoFile, setPhotoFile] = useState<File | null>(null);
     const [audioTranscription, setAudioTranscription] = useState('');
     const [textDescription, setTextDescription] = useState('');
+    const [audioTokens, setAudioTokens] = useState(0);
     
     const isBusy = isRecording || isTranscribing || isProcessing;
 
@@ -80,23 +81,21 @@ export function IncidentFormStep1({ onStepComplete }: IncidentFormStep1Props) {
             const audioDataUri = await fileToDataURI(audioBlob as File);
             const result = await transcribeAudio({ audioDataUri });
             if (result.success && result.data) {
-                setAudioTranscription(result.data);
+                setAudioTranscription(result.data.text);
+                setAudioTokens(result.data.usage?.totalTokens || 0);
                 toast({
                     title: 'Transcripción Completa',
                     description: 'El audio ha sido transcrito.',
                 });
             } else {
-                // If the server action returns an error, we now have a detailed message.
-                // We use this message in the toast to inform the user.
                 throw new Error(result.error || 'La transcripción falló por una razón desconocida.');
             }
         } catch (error: any) {
             console.error('Error de transcripción:', error);
-            // Display the detailed error message from the catch block.
             toast({
                 variant: 'destructive',
                 title: 'Fallo en la Transcripción',
-                description: error.message || 'No se pudo transcribir el audio grabado.',
+                description: typeof error === 'string' ? error : error.message,
             });
         } finally {
             setIsTranscribing(false);
@@ -135,6 +134,7 @@ export function IncidentFormStep1({ onStepComplete }: IncidentFormStep1Props) {
             photoDataUri,
             audioTranscription,
             textDescription,
+            audioTokens,
         });
         setIsProcessing(false);
     };

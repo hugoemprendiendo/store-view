@@ -9,6 +9,7 @@ export type IncidentData = {
   photoDataUri?: string;
   audioTranscription?: string;
   textDescription?: string;
+  audioTokens?: number;
 };
 
 export default function NewIncidentPage() {

@@ -64,6 +64,10 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
             </Card>
         );
     }
+    
+    const analysisTokens = analysisResult?.totalTokens || 0;
+    const audioTokens = incidentData.audioTokens || 0;
+    const totalTokens = analysisTokens + audioTokens;
 
     if (!analysisResult) {
         return (
@@ -146,13 +150,13 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Volver al Paso 1
                 </Button>
-                {analysisResult.totalTokens && (
+                {totalTokens > 0 && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground border rounded-full px-3 py-1">
                         <Cpu className="size-4" />
-                        <span>Consumo de IA:</span>
-                        <span className="font-semibold">{analysisResult.totalTokens} tokens</span>
+                        <span>Consumo Total de IA:</span>
+                        <span className="font-semibold">{totalTokens} tokens</span>
                         <span className="text-muted-foreground/50">
-                            (Entrada: {analysisResult.inputTokens}, Salida: {analysisResult.outputTokens})
+                            (Audio: {audioTokens}, Análisis: {analysisTokens})
                         </span>
                     </div>
                 )}

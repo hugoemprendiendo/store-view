@@ -19,7 +19,16 @@ const TranscribeAudioInputSchema = z.object({
 });
 export type TranscribeAudioInput = z.infer<typeof TranscribeAudioInputSchema>;
 
-export type TranscribeAudioOutput = string;
+const TranscribeAudioOutputSchema = z.object({
+    text: z.string().describe('The transcribed text.'),
+    usage: z.object({
+        inputTokens: z.number().optional(),
+        outputTokens: z.number().optional(),
+        totalTokens: z.number().optional(),
+    }).optional().describe('Token usage information.')
+});
+export type TranscribeAudioOutput = z.infer<typeof TranscribeAudioOutputSchema>;
+
 
 export async function transcribeAudio(
   input: TranscribeAudioInput
@@ -39,12 +48,13 @@ const transcribeAudioFlow = ai.defineFlow(
   {
     name: 'transcribeAudioFlow',
     inputSchema: TranscribeAudioInputSchema,
-    outputSchema: z.string(),
+    outputSchema: TranscribeAudioOutputSchema,
   },
   async input => {
-    const {text} = await transcribeAudioPrompt(input);
-    return text;
+    const {text, usage} = await transcribeAudioPrompt(input);
+    return {
+        text,
+        usage,
+    };
   }
 );
-
-    
