@@ -6,12 +6,12 @@ function getImage(id: string) {
 }
 
 const branches: Branch[] = [
-  { id: '1', name: 'KFC Xalapa 1', region: 'North', brand: 'KFC', address: '123 Colonel St, Metropolis, USA', imageUrl: getImage('branch-1')?.imageUrl!, imageHint: getImage('branch-1')?.imageHint! },
-  { id: '2', name: 'DQ - Plaza Crystal', region: 'West', brand: 'DQ', address: 'Av de la República, Xalapa, VER', imageUrl: getImage('branch-2')?.imageUrl!, imageHint: getImage('branch-2')?.imageHint! },
-  { id: '3', name: 'KFC Xalapa 2', region: 'East', brand: 'KFC', address: '789 Zinger Ln, Star City, USA', imageUrl: getImage('branch-3')?.imageUrl!, imageHint: getImage('branch-3')?.imageHint! },
-  { id: '4', name: 'DQ - Plaza Paseo Jardines', region: 'North', brand: 'DQ', address: 'Paseo Jardines, Xalapa, VER', imageUrl: getImage('branch-4')?.imageUrl!, imageHint: getImage('branch-4')?.imageHint! },
-  { id: '5', name: 'KFC Xalapa 3', region: 'South', brand: 'KFC', address: '212 Bucket Rd, Coast City, USA', imageUrl: getImage('branch-5')?.imageUrl!, imageHint: getImage('branch-5')?.imageHint! },
-  { id: '6', name: 'DQ - Animas', region: 'West', brand: 'DQ', address: 'SIPEH Animas, Xalapa, VER', imageUrl: getImage('branch-6')?.imageUrl!, imageHint: getImage('branch-6')?.imageHint! },
+  { id: '1', name: 'KFC Xalapa 1', region: 'Xalapa', brand: 'KFC', address: '123 Colonel St, Metropolis, USA', imageUrl: getImage('branch-1')?.imageUrl!, imageHint: getImage('branch-1')?.imageHint! },
+  { id: '2', name: 'DQ - Plaza Crystal', region: 'Xalapa', brand: 'DQ', address: 'Av de la República, Xalapa, VER', imageUrl: getImage('branch-2')?.imageUrl!, imageHint: getImage('branch-2')?.imageHint! },
+  { id: '3', name: 'KFC Xalapa 2', region: 'Xalapa', brand: 'KFC', address: '789 Zinger Ln, Star City, USA', imageUrl: getImage('branch-3')?.imageUrl!, imageHint: getImage('branch-3')?.imageHint! },
+  { id: '4', name: 'DQ - Plaza Paseo Jardines', region: 'Xalapa', brand: 'DQ', address: 'Paseo Jardines, Xalapa, VER', imageUrl: getImage('branch-4')?.imageUrl!, imageHint: getImage('branch-4')?.imageHint! },
+  { id: '5', name: 'KFC Xalapa 3', region: 'Xalapa', brand: 'KFC', address: '212 Bucket Rd, Coast City, USA', imageUrl: getImage('branch-5')?.imageUrl!, imageHint: getImage('branch-5')?.imageHint! },
+  { id: '6', name: 'DQ - Animas', region: 'Xalapa', brand: 'DQ', address: 'SIPEH Animas, Xalapa, VER', imageUrl: getImage('branch-6')?.imageUrl!, imageHint: getImage('branch-6')?.imageHint! },
 ];
 
 let incidents: Incident[] = [

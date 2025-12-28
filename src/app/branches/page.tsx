@@ -29,7 +29,6 @@ export default async function BranchesPage() {
               <TableRow>
                 <TableHead>Nombre</TableHead>
                 <TableHead>Marca</TableHead>
-                <TableHead>Región</TableHead>
                 <TableHead>Dirección</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
@@ -39,7 +38,6 @@ export default async function BranchesPage() {
                 <TableRow key={branch.id}>
                   <TableCell className="font-medium">{branch.name}</TableCell>
                   <TableCell>{branch.brand}</TableCell>
-                  <TableCell>{branch.region}</TableCell>
                   <TableCell>{branch.address}</TableCell>
                   <TableCell className="text-right">
                     <Button asChild variant="ghost" size="icon">

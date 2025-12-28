@@ -4,7 +4,7 @@ import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { PlusCircle, MapPin, Building, Tag, Flag } from 'lucide-react';
+import { PlusCircle, MapPin, Building } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -59,10 +59,6 @@ export default async function BranchDetailPage({ params }: { params: { id: strin
                     <div className="flex items-center gap-3">
                         <Building className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                         <span>{branch.brand}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <Flag className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                        <span>{branch.region}</span>
                     </div>
                 </CardContent>
             </Card>

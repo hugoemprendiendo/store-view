@@ -34,19 +34,16 @@ function getBranchStatus(branchIncidents: Incident[]): 'error' | 'warning' | 'ok
 export function DashboardClient({ branches, incidents }: DashboardClientProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('all');
-  const [selectedRegion, setSelectedRegion] = useState('all');
 
   const brands = useMemo(() => ['all', ...Array.from(new Set(branches.map((b) => b.brand)))], [branches]);
-  const regions = useMemo(() => ['all', ...Array.from(new Set(branches.map((b) => b.region)))], [branches]);
 
   const filteredBranches = useMemo(() => {
     return branches.filter((branch) => {
       const brandMatch = selectedBrand === 'all' || branch.brand === selectedBrand;
-      const regionMatch = selectedRegion === 'all' || branch.region === selectedRegion;
       const searchMatch = branch.name.toLowerCase().includes(searchTerm.toLowerCase()) || branch.brand.toLowerCase().includes(searchTerm.toLowerCase());
-      return brandMatch && regionMatch && searchMatch;
+      return brandMatch && searchMatch;
     });
-  }, [branches, selectedBrand, selectedRegion, searchTerm]);
+  }, [branches, selectedBrand, searchTerm]);
 
   const { criticalCount, warningCount, operationalCount } = useMemo(() => {
     return branches.reduce(
@@ -118,18 +115,6 @@ export function DashboardClient({ branches, incidents }: DashboardClientProps) {
                         {brands.map((brand) => (
                         <SelectItem key={brand} value={brand}>
                             {brand === 'all' ? 'Todas las marcas' : brand}
-                        </SelectItem>
-                        ))}
-                    </SelectContent>
-                    </Select>
-                    <Select value={selectedRegion} onValueChange={setSelectedRegion}>
-                    <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Filtrar por región..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {regions.map((region) => (
-                        <SelectItem key={region} value={region}>
-                            {region === 'all' ? 'Todas las regiones' : region}
                         </SelectItem>
                         ))}
                     </SelectContent>
