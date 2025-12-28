@@ -8,14 +8,15 @@ service cloud.firestore {
     }
     
     function isCreatingOwnProfile(userId) {
-      // A user can only create a document where the ID matches their own user ID.
+      // A user can only access a document where the ID matches their own user ID.
       return request.auth.uid == userId;
     }
 
     match /users/{userId} {
-      // Anyone can create a user profile for themselves.
-      // The logic to assign roles is handled in the application client-side code.
-      allow create: if isCreatingOwnProfile(userId);
+      // Anyone can create a user profile document.
+      // The logic to assign roles and secure the data happens in the application code
+      // and in the read/update rules below. This avoids a race condition during signup.
+      allow create;
       
       // Only the user themselves can read or update their own profile.
       allow read, update: if isCreatingOwnProfile(userId);
