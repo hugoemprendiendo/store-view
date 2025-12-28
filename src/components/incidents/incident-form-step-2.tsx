@@ -180,7 +180,7 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
                         <div className="flex items-center gap-2 text-xs text-muted-foreground border rounded-full px-3 py-1">
                             <DollarSign className="size-4" />
                             <span>Costo Estimado:</span>
-                            <span className="font-semibold">${estimatedCost.toFixed(6)}</span>
+                            <span className="font-semibold">${estimatedCost.toFixed(6)} USD</span>
                         </div>
                     )}
                 </div>
