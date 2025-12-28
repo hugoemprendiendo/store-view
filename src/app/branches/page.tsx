@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import type { Branch } from '@/lib/types';
-import { getBranches, getBranchesByIds } from '@/lib/data';
+import { getBranches } from '@/lib/data';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -35,22 +35,39 @@ export default function BranchesPage() {
       if (!firestore || !userProfile) return;
       setIsLoading(true);
       
-      let branchesData: Branch[];
-      if (userProfile.role === 'superadmin') {
-        // Superadmin uses the existing `getBranches` which fetches all documents.
-        // The security rules allow this with `allow list`.
-        branchesData = await getBranches(firestore);
-      } else if (userProfile.assignedBranches && userProfile.assignedBranches.length > 0) {
-        // Regular users must fetch only the documents they have access to.
-        // We use `getBranchesByIds` which performs a `where in` query.
-        // Our rules allow this because `allow get` is checked for each document ID.
-        branchesData = await getBranchesByIds(firestore, userProfile.assignedBranches);
-      } else {
-        branchesData = [];
+      let branchesData: Branch[] = [];
+      try {
+        if (userProfile.role === 'superadmin') {
+          // Superadmin uses the existing `getBranches` which fetches all documents via `getDocs`.
+          branchesData = await getBranches(firestore);
+        } else if (userProfile.assignedBranches && userProfile.assignedBranches.length > 0) {
+          // Regular users must fetch only the documents they have access to.
+          // We perform a `where in` query directly here.
+          const branchesRef = collection(firestore, 'branches');
+          const assignedIds = userProfile.assignedBranches;
+          
+          // Firestore 'in' query is limited to 30 elements per query.
+          const chunks: string[][] = [];
+          for (let i = 0; i < assignedIds.length; i += 30) {
+            chunks.push(assignedIds.slice(i, i + 30));
+          }
+          
+          const chunkPromises = chunks.map(chunk => 
+            getDocs(query(branchesRef, where('__name__', 'in', chunk)))
+          );
+
+          const allSnapshots = await Promise.all(chunkPromises);
+          branchesData = allSnapshots.flatMap(snapshot => 
+            snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Branch))
+          );
+        }
+      } catch (error) {
+        console.error("Error fetching branches: ", error);
+        // In case of error (e.g. permissions), branches will be an empty array
+      } finally {
+        setBranches(branchesData);
+        setIsLoading(false);
       }
-      
-      setBranches(branchesData);
-      setIsLoading(false);
     }
 
     if (!isUserLoading && !isProfileLoading) {
