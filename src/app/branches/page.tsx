@@ -19,7 +19,7 @@ import { Eye, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useFirestore, useUser } from '@/firebase';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 
 
 export default function BranchesPage() {
@@ -38,32 +38,19 @@ export default function BranchesPage() {
       let branchesData: Branch[] = [];
       try {
         if (userProfile.role === 'superadmin') {
-          // Superadmin uses the existing `getBranches` which fetches all documents via `getDocs`.
           branchesData = await getBranches(firestore);
         } else if (userProfile.assignedBranches && userProfile.assignedBranches.length > 0) {
-          // Regular users must fetch only the documents they have access to.
-          // We perform a `where in` query directly here.
-          const branchesRef = collection(firestore, 'branches');
-          const assignedIds = userProfile.assignedBranches;
-          
-          // Firestore 'in' query is limited to 30 elements per query.
-          const chunks: string[][] = [];
-          for (let i = 0; i < assignedIds.length; i += 30) {
-            chunks.push(assignedIds.slice(i, i + 30));
-          }
-          
-          const chunkPromises = chunks.map(chunk => 
-            getDocs(query(branchesRef, where('__name__', 'in', chunk)))
-          );
-
-          const allSnapshots = await Promise.all(chunkPromises);
-          branchesData = allSnapshots.flatMap(snapshot => 
-            snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Branch))
-          );
+          // For regular users, fetch each assigned branch document individually.
+          // Firestore security rules do not allow list/query operations based on checking another document's field.
+          // We must use individual 'get' requests, which our rules permit.
+          const branchPromises = userProfile.assignedBranches.map(id => getDoc(doc(firestore, 'branches', id)));
+          const branchSnapshots = await Promise.all(branchPromises);
+          branchesData = branchSnapshots
+            .filter(snap => snap.exists())
+            .map(snap => ({ id: snap.id, ...snap.data() } as Branch));
         }
       } catch (error) {
         console.error("Error fetching branches: ", error);
-        // In case of error (e.g. permissions), branches will be an empty array
       } finally {
         setBranches(branchesData);
         setIsLoading(false);
