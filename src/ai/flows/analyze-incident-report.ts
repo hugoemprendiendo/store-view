@@ -45,24 +45,24 @@ const analyzeIncidentReportPrompt = ai.definePrompt({
   name: 'analyzeIncidentReportPrompt',
   input: {schema: AnalyzeIncidentReportInputSchema},
   output: {schema: AnalyzeIncidentReportOutputSchema},
-  prompt: `You are an AI assistant that analyzes incident reports and suggests improvements.
+  prompt: `Eres un asistente de IA que analiza reportes de incidencias y sugiere mejoras.
 
-  Based on the provided information, suggest a title, category, priority, status, and a detailed, structured description for the incident report.
-  The description should summarize all the evidence provided.
-  Respond in a JSON format.
+  Basado en la información proporcionada, sugiere un título, categoría, prioridad, estado y una descripción detallada y estructurada para el reporte de incidencia. Todos los campos de salida DEBEN estar en español.
+  La descripción debe resumir toda la evidencia proporcionada.
+  Responde en formato JSON.
 
-  Consider the following information when making your suggestions:
+  Considera la siguiente información al hacer tus sugerencias:
 
   {{#if photoDataUri}}
   Photo: {{media url=photoDataUri}}
   {{/if}}
 
   {{#if audioTranscription}}
-  Audio Transcription: {{{audioTranscription}}}
+  Transcripción de Audio: {{{audioTranscription}}}
   {{/if}}
 
   {{#if textDescription}}
-  User's Text Description: {{{textDescription}}}
+  Descripción de Texto del Usuario: {{{textDescription}}}
   {{/if}}`,
 });
 

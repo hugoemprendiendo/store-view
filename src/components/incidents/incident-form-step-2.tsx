@@ -31,7 +31,11 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
                 description: 'La IA está generando el reporte de incidencia. Esto puede tardar un momento.',
             });
 
-            const result = await getAIAnalysis(incidentData);
+            // Do not send image for analysis
+            const result = await getAIAnalysis({
+                audioTranscription: incidentData.audioTranscription,
+                textDescription: incidentData.textDescription,
+            });
 
             if (result.success && result.data) {
                 setAnalysisResult(result.data);
