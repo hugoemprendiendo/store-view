@@ -19,7 +19,7 @@ import { Eye, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useFirestore, useUser } from '@/firebase';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 
 
 export default function BranchesPage() {
@@ -38,17 +38,18 @@ export default function BranchesPage() {
       let branchesData: Branch[] = [];
       try {
         if (userProfile.role === 'superadmin') {
+          // Superadmin can fetch all branches
           branchesData = await getBranches(firestore);
         } else if (userProfile.assignedBranches && userProfile.assignedBranches.length > 0) {
           // For regular users, fetch each assigned branch document individually.
-          // Firestore security rules do not allow list/query operations based on checking another document's field.
-          // We must use individual 'get' requests, which our rules permit.
+          // This aligns with security rules that only allow `get` operations for assigned users.
           const branchPromises = userProfile.assignedBranches.map(id => getDoc(doc(firestore, 'branches', id)));
           const branchSnapshots = await Promise.all(branchPromises);
           branchesData = branchSnapshots
             .filter(snap => snap.exists())
             .map(snap => ({ id: snap.id, ...snap.data() } as Branch));
         }
+        // If user is not superadmin and has no assigned branches, branchesData will be empty.
       } catch (error) {
         console.error("Error fetching branches: ", error);
       } finally {

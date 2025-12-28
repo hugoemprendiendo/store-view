@@ -15,23 +15,19 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(userId)).data;
     }
 
-    function getRole() {
-      return getUserData(request.auth.uid).role;
+    function getRole(userId) {
+      return getUserData(userId).role;
     }
 
     function isSuperAdmin() {
-      // A user is a superadmin if they are signed in, their user document exists,
-      // and their role is 'superadmin'.
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getRole() == 'superadmin';
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getRole(request.auth.uid) == 'superadmin';
     }
 
     function isAssignedToBranch(branchId) {
-      // A regular user is assigned to a branch if their user document exists,
-      // they have an 'assignedBranches' list, and the branchId is in that list.
-      return isSignedIn() && 
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             'assignedBranches' in getUserData(request.auth.uid) &&
-             branchId in getUserData(request.auth.uid).assignedBranches;
+      // This rule is for non-admin users. It checks if a branchId is in their assigned list.
+      // It assumes the user document exists and has the 'assignedBranches' field.
+      let userDoc = getUserData(request.auth.uid);
+      return 'assignedBranches' in userDoc && branchId in userDoc.assignedBranches;
     }
 
     match /users/{userId} {
@@ -62,12 +58,15 @@ service cloud.firestore {
       allow get, write: if isSuperAdmin() || isAssignedToBranch(getBranchIdForIncident());
 
       // Superadmins can list all incidents.
-      // Users can list incidents if the query is filtered by a branchId they are assigned to.
+      // Users can list incidents ONLY if the query is filtered by a branchId they are assigned to.
       allow list: if isSuperAdmin() || (
         isSignedIn() &&
         request.query.keys().hasAny(['where']) &&
-        request.query.where.branchId.to_list().size() > 0 &&
-        isAssignedToBranch(request.query.where.branchId.to_list()[0])
+        // Ensure the query is filtering by branchId
+        string(request.query.where[0][0]) == 'branchId' && 
+        string(request.query.where[0][1]) == '==' &&
+        // Check if the user is assigned to the specific branchId in the query
+        isAssignedToBranch(request.query.where[0][2])
       );
     }
   }
