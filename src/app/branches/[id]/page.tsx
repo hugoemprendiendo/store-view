@@ -13,9 +13,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { format } from 'date-fns';
 import type { Branch, Incident } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { updateIncidentStatus } from '@/app/actions';
+import { revalidateIncidentPaths } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore, useUser } from '@/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
 const priorityVariantMap = {
   Low: 'secondary',
@@ -56,34 +57,44 @@ export default function BranchDetailPage() {
         setIsLoading(false);
       }
     }
-    fetchData();
-  }, [id, firestore, user]);
+    if (!isUserLoading) {
+      fetchData();
+    }
+  }, [id, firestore, user, isUserLoading]);
 
   const handleStatusChange = async (incidentId: string, newStatus: Incident['status']) => {
+    if (!firestore) return;
+
     setUpdatingStatus(incidentId);
     const originalIncidents = [...incidents];
     // Optimistic update
     setIncidents(incidents.map(i => i.id === incidentId ? { ...i, status: newStatus } : i));
 
-    const result = await updateIncidentStatus(incidentId, newStatus);
+    try {
+        const incidentRef = doc(firestore, 'incidents', incidentId);
+        await updateDoc(incidentRef, { status: newStatus });
 
-    if (result.success) {
-      toast({
-        title: 'Estado Actualizado',
-        description: `El estado de la incidencia cambió a "${newStatus}".`,
-      });
-      // Re-fetch data to get the latest state after action's revalidation
-      router.refresh();
-    } else {
+        toast({
+            title: 'Estado Actualizado',
+            description: `El estado de la incidencia cambió a "${newStatus}".`,
+        });
+        
+        // Trigger revalidation on relevant pages
+        await revalidateIncidentPaths(incidentId, id);
+        router.refresh();
+
+    } catch (error) {
       // Revert on failure
       setIncidents(originalIncidents);
       toast({
         variant: 'destructive',
         title: 'Actualización Fallida',
-        description: result.error || 'No se pudo actualizar el estado de la incidencia.',
+        description: 'No se pudo actualizar el estado de la incidencia.',
       });
+      console.error("Failed to update status:", error);
+    } finally {
+        setUpdatingStatus(null);
     }
-    setUpdatingStatus(null);
   };
   
   if (isLoading || isUserLoading) {

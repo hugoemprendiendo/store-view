@@ -12,8 +12,11 @@ import { Building, Calendar, Layers, Shield, Tag } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { updateIncidentStatus } from '@/app/actions';
+import { revalidateIncidentPaths } from '@/app/actions';
 import Link from 'next/link';
+import { useFirestore } from '@/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+
 
 interface IncidentDetailsProps {
   incident: Incident;
@@ -38,25 +41,34 @@ export default function IncidentDetails({ incident: initialIncident, branch }: I
     const [isUpdating, setIsUpdating] = useState(false);
     const router = useRouter();
     const { toast } = useToast();
+    const firestore = useFirestore();
 
     const handleStatusUpdate = async () => {
+        if (!firestore) return;
         setIsUpdating(true);
-        const result = await updateIncidentStatus(incident.id, selectedStatus);
-        if (result.success && result.data) {
-            setIncident(result.data);
+        try {
+            const incidentRef = doc(firestore, 'incidents', incident.id);
+            await updateDoc(incidentRef, { status: selectedStatus });
+            
+            setIncident(prev => ({...prev, status: selectedStatus}));
+
             toast({
                 title: 'Estado Actualizado',
                 description: `El estado de la incidencia cambió a "${selectedStatus}".`,
             });
-        } else {
-            toast({
+            await revalidateIncidentPaths(incident.id, incident.branchId);
+            router.refresh();
+        } catch (error) {
+             toast({
                 variant: 'destructive',
                 title: 'Actualización Fallida',
-                description: result.error,
+                description: 'No se pudo actualizar el estado de la incidencia.',
             });
             setSelectedStatus(incident.status); // Revert UI
+            console.error(error);
+        } finally {
+            setIsUpdating(false);
         }
-        setIsUpdating(false);
     };
 
     return (

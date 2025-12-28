@@ -11,6 +11,7 @@ import { firebaseConfig } from '@/firebase/config';
 
 // This is a temporary workaround to get a client-side firestore instance on the server
 // In a real app, you would likely have a shared admin instance for server actions.
+// NOTE: This function does not carry user auth context, causing permission errors for writes.
 function getDb() {
     const apps = getApps();
     const app = apps.length > 0 ? apps[0] : initializeApp(firebaseConfig);
@@ -48,8 +49,6 @@ export async function createIncident(data: Omit<Incident, 'id' | 'createdAt'>) {
             photoHint: 'user uploaded',
             createdAt: new Date().toISOString(),
         };
-        // @ts-ignore
-        delete incidentToCreate.photo;
 
         const newDocRef = await addDoc(incidentsCol, incidentToCreate);
         const newIncidentSnap = await getDoc(newDocRef);
@@ -64,24 +63,8 @@ export async function createIncident(data: Omit<Incident, 'id' | 'createdAt'>) {
     }
 }
 
-export async function updateIncidentStatus(id: string, status: Incident['status']) {
-    try {
-        const db = getDb();
-        const incidentRef = doc(db, 'incidents', id);
-        await updateDoc(incidentRef, { status });
-        
-        const updatedSnap = await getDoc(incidentRef);
-        const updatedIncident = { id: updatedSnap.id, ...updatedSnap.data() } as Incident;
-
-        if (!updatedIncident) {
-            return { success: false, error: 'Incidencia no encontrada.' };
-        }
-        revalidatePath('/');
-        revalidatePath(`/branches/${updatedIncident.branchId}`);
-        revalidatePath(`/incidents/${id}`);
-        return { success: true, data: updatedIncident };
-    } catch (error) {
-        console.error(error);
-        return { success: false, error: 'Error al actualizar el estado de la incidencia.' };
-    }
+export async function revalidateIncidentPaths(incidentId: string, branchId: string) {
+    revalidatePath('/');
+    revalidatePath(`/branches/${branchId}`);
+    revalidatePath(`/incidents/${incidentId}`);
 }
