@@ -2,49 +2,59 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     function isSignedIn() {
       return request.auth != null;
     }
-    
+
     function isCreatingOwnProfile(userId) {
-      return request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
-    
+
     function getUserData(userId) {
       return get(/databases/$(database)/documents/users/$(userId)).data;
     }
 
-    function getRole() {
-      return getUserData(request.auth.uid).role;
-    }
-
     function isSuperAdmin() {
-      return isSignedIn() && getRole() == 'superadmin';
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
+          && getUserData(request.auth.uid).role == 'superadmin';
     }
 
     function isAssignedToBranch(branchId) {
-      return isSignedIn() && branchId in getUserData(request.auth.uid).assignedBranches;
+      // Return true if the user is a superadmin.
+      if (isSuperAdmin()) {
+        return true;
+      }
+      
+      // For regular users, check if the branchId key exists in their assignedBranches map.
+      let userDoc = getUserData(request.auth.uid);
+      return isSignedIn() && 'assignedBranches' in userDoc && branchId in userDoc.assignedBranches;
     }
 
     match /users/{userId} {
       allow create: if isCreatingOwnProfile(userId);
-      allow read, update: if isSuperAdmin() || isCreatingOwnProfile(userId);
+      allow read, update, list: if isSuperAdmin() || isCreatingOwnProfile(userId);
     }
 
     match /branches/{branchId} {
-      allow read: if isSuperAdmin() || isAssignedToBranch(branchId);
-      allow write: if isSuperAdmin(); // Only superadmins can create/edit branches
+      allow list: if isSuperAdmin();
+      allow get: if isAssignedToBranch(branchId);
+      allow write: if isSuperAdmin();
     }
 
     match /incidents/{incidentId} {
-      // To read or write an incident, you must have access to the branch it belongs to.
-      // The incident data is in `request.resource.data` for write, and `resource.data` for read.
       function getBranchIdForIncident() {
         return request.method == 'create' ? request.resource.data.branchId : resource.data.branchId;
       }
-      
-      allow read, write: if isSuperAdmin() || isAssignedToBranch(getBranchIdForIncident());
+
+      allow get, write: if isAssignedToBranch(getBranchIdForIncident());
+
+      allow list: if isSuperAdmin() || (
+        isSignedIn() &&
+        request.query.keys().hasAny(['where']) &&
+        request.query.where.branchId is string &&
+        isAssignedToBranch(request.query.where.branchId)
+      );
     }
   }
 }

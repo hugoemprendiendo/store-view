@@ -141,7 +141,7 @@ export default function UsersPage() {
                     {user.role === 'superadmin' ? (
                         <Badge variant="outline">Todas</Badge>
                     ) : (
-                        <Badge variant="secondary">{user.assignedBranches?.length || 0}</Badge>
+                        <Badge variant="secondary">{user.assignedBranches ? Object.keys(user.assignedBranches).length : 0}</Badge>
                     )}
                   </TableCell>
                   <TableCell className="text-right">

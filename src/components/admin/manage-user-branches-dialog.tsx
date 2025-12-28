@@ -29,15 +29,20 @@ interface ManageUserBranchesDialogProps {
 
 export function ManageUserBranchesDialog({ user, allBranches, children, onUserUpdate }: ManageUserBranchesDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedBranches, setSelectedBranches] = useState<string[]>(user.assignedBranches || []);
+  // Selections are now a map: { [branchId]: true }
+  const [selectedBranches, setSelectedBranches] = useState<Record<string, boolean>>(user.assignedBranches || {});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const firestore = useFirestore();
   const { toast } = useToast();
 
   const handleCheckboxChange = (branchId: string, checked: boolean) => {
-    setSelectedBranches(prev => 
-      checked ? [...prev, branchId] : prev.filter(id => id !== branchId)
-    );
+    const newSelection = { ...selectedBranches };
+    if (checked) {
+      newSelection[branchId] = true;
+    } else {
+      delete newSelection[branchId];
+    }
+    setSelectedBranches(newSelection);
   };
 
   const handleSave = async () => {
@@ -47,6 +52,7 @@ export function ManageUserBranchesDialog({ user, allBranches, children, onUserUp
     const userRef = doc(firestore, 'users', user.id);
 
     try {
+      // Save the new map of branches
       await updateDoc(userRef, {
         assignedBranches: selectedBranches
       });
@@ -74,7 +80,7 @@ export function ManageUserBranchesDialog({ user, allBranches, children, onUserUp
   const handleOpenChange = (open: boolean) => {
     if (open) {
       // Reset state when opening the dialog
-      setSelectedBranches(user.assignedBranches || []);
+      setSelectedBranches(user.assignedBranches || {});
     }
     setIsOpen(open);
   };
@@ -98,7 +104,7 @@ export function ManageUserBranchesDialog({ user, allBranches, children, onUserUp
                     <div key={branch.id} className="flex items-center space-x-2">
                         <Checkbox
                             id={`branch-${branch.id}`}
-                            checked={selectedBranches.includes(branch.id)}
+                            checked={!!selectedBranches[branch.id]}
                             onCheckedChange={(checked) => handleCheckboxChange(branch.id, !!checked)}
                         />
                         <Label htmlFor={`branch-${branch.id}`} className="font-normal">

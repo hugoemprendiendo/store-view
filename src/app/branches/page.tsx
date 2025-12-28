@@ -39,12 +39,15 @@ export default function BranchesPage() {
       try {
         if (userProfile.role === 'superadmin') {
           branchesData = await getBranches(firestore);
-        } else if (userProfile.assignedBranches && userProfile.assignedBranches.length > 0) {
-          const branchPromises = userProfile.assignedBranches.map(id => getDoc(doc(firestore, 'branches', id)));
-          const branchSnapshots = await Promise.all(branchPromises);
-          branchesData = branchSnapshots
-            .filter(snap => snap.exists())
-            .map(snap => ({ id: snap.id, ...snap.data() } as Branch));
+        } else if (userProfile.assignedBranches) {
+          const branchIds = Object.keys(userProfile.assignedBranches);
+          if (branchIds.length > 0) {
+            const branchPromises = branchIds.map(id => getDoc(doc(firestore, 'branches', id)));
+            const branchSnapshots = await Promise.all(branchPromises);
+            branchesData = branchSnapshots
+              .filter(snap => snap.exists())
+              .map(snap => ({ id: snap.id, ...snap.data() } as Branch));
+          }
         }
       } catch (error) {
         console.error("Error fetching branches: ", error);

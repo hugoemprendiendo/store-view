@@ -28,7 +28,7 @@ export type UserProfile = {
   email: string;
   role: 'user' | 'superadmin';
   createdAt: string;
-  assignedBranches?: string[];
+  assignedBranches?: Record<string, boolean>;
 }
 
 export const IncidentCategories = [
