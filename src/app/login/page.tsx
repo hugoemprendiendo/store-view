@@ -56,9 +56,10 @@ export default function LoginPage() {
       });
       // The AuthProvider will redirect to the home page
     } catch (error: any) {
-      console.error(error);
-      let description = 'Ocurrió un error inesperado.';
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+      console.error("Login Error:", error.code, error.message);
+      let description = 'Ocurrió un error inesperado al intentar iniciar sesión.';
+      // auth/invalid-credential is the new unified error code for wrong password, user not found, etc.
+      if (error.code === 'auth/invalid-credential') {
           description = 'Las credenciales son incorrectas. Por favor, verifica tu correo y contraseña.';
       }
       toast({
@@ -124,9 +125,11 @@ export default function LoginPage() {
                 {isSubmitting ? (
                   <Loader2 className="animate-spin" />
                 ) : (
-                  <LogIn className="mr-2"/>
+                  <>
+                    <LogIn className="mr-2"/>
+                    Iniciar Sesión
+                  </>
                 )}
-                Iniciar Sesión
               </Button>
             </form>
           </Form>
