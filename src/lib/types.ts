@@ -22,7 +22,16 @@ export type Incident = {
   createdAt: string;
 };
 
-export const IncidentCategories = ['Plumbing', 'Electrical', 'Security', 'Structural', 'General', 'Other'];
+export const IncidentCategories = [
+  'Kitchen Equipment',
+  'Point of Sale (POS)',
+  'Customer Area',
+  'Drive-Thru',
+  'Food Safety',
+  'Employee',
+  'Facilities',
+  'Other',
+];
 export const IncidentPriorities = ['Low', 'Medium', 'High'] as const;
 export const IncidentStatuses = ['Open', 'In Progress', 'Resolved'];
 

@@ -6,22 +6,22 @@ function getImage(id: string) {
 }
 
 const branches: Branch[] = [
-  { id: '1', name: 'Downtown Central', region: 'North', brand: 'Quantum', address: '123 Main St, Metropolis, USA', imageUrl: getImage('branch-1')?.imageUrl!, imageHint: getImage('branch-1')?.imageHint! },
-  { id: '2', name: 'Westside Mall', region: 'West', brand: 'Apex', address: '456 Oak Ave, Gotham, USA', imageUrl: getImage('branch-2')?.imageUrl!, imageHint: getImage('branch-2')?.imageHint! },
-  { id: '3', name: 'Eastpoint Plaza', region: 'East', brand: 'Quantum', address: '789 Pine Ln, Star City, USA', imageUrl: getImage('branch-3')?.imageUrl!, imageHint: getImage('branch-3')?.imageHint! },
-  { id: '4', name: 'Northgate Retail', region: 'North', brand: 'Apex', address: '101 Maple Dr, Central City, USA', imageUrl: getImage('branch-4')?.imageUrl!, imageHint: getImage('branch-4')?.imageHint! },
-  { id: '5', name: 'Southbend Center', region: 'South', brand: 'Synergy', address: '212 Birch Rd, Coast City, USA', imageUrl: getImage('branch-5')?.imageUrl!, imageHint: getImage('branch-5')?.imageHint! },
-  { id: '6', name: 'The Grove', region: 'West', brand: 'Synergy', address: '333 Elm St, Keystone, USA', imageUrl: getImage('branch-6')?.imageUrl!, imageHint: getImage('branch-6')?.imageHint! },
+  { id: '1', name: 'KFC - Metropolis Central', region: 'North', brand: 'KFC', address: '123 Colonel St, Metropolis, USA', imageUrl: getImage('branch-1')?.imageUrl!, imageHint: getImage('branch-1')?.imageHint! },
+  { id: '2', name: 'DQ - Gotham West', region: 'West', brand: 'DQ', address: '456 Blizzard Ave, Gotham, USA', imageUrl: getImage('branch-2')?.imageUrl!, imageHint: getImage('branch-2')?.imageHint! },
+  { id: '3', name: 'KFC - Star City East', region: 'East', brand: 'KFC', address: '789 Zinger Ln, Star City, USA', imageUrl: getImage('branch-3')?.imageUrl!, imageHint: getImage('branch-3')?.imageHint! },
+  { id: '4', name: 'DQ - Central City North', region: 'North', brand: 'DQ', address: '101 Grill Dr, Central City, USA', imageUrl: getImage('branch-4')?.imageUrl!, imageHint: getImage('branch-4')?.imageHint! },
+  { id: '5', name: 'KFC - Coast City South', region: 'South', brand: 'KFC', address: '212 Bucket Rd, Coast City, USA', imageUrl: getImage('branch-5')?.imageUrl!, imageHint: getImage('branch-5')?.imageHint! },
+  { id: '6', name: 'DQ - Keystone West', region: 'West', brand: 'DQ', address: '333 Treat St, Keystone, USA', imageUrl: getImage('branch-6')?.imageUrl!, imageHint: getImage('branch-6')?.imageHint! },
 ];
 
 let incidents: Incident[] = [
-  { id: '101', title: 'Leaky Faucet in Restroom', branchId: '1', category: 'Plumbing', priority: 'Medium', status: 'Open', createdAt: '2024-05-20T10:00:00Z', description: 'Customer reported a continuously dripping faucet in the men\'s restroom.', photoUrl: getImage('incident-plumbing-1')?.imageUrl, photoHint: getImage('incident-plumbing-1')?.imageHint },
-  { id: '102', title: 'Power Outlet Sparking', branchId: '2', category: 'Electrical', priority: 'High', status: 'Open', createdAt: '2024-05-21T14:30:00Z', description: 'The outlet near the main entrance is sparking when plugs are inserted. It has been cordoned off.', photoUrl: getImage('incident-electrical-1')?.imageUrl, photoHint: getImage('incident-electrical-1')?.imageHint },
-  { id: '103', title: 'Broken Shelf Bracket', branchId: '1', category: 'Structural', priority: 'Low', status: 'Resolved', createdAt: '2024-05-18T09:00:00Z', description: 'A shelf bracket in aisle 5 was broken. It has been replaced.' },
-  { id: '104', title: 'Crack in Front Window', branchId: '3', category: 'Structural', priority: 'High', status: 'In Progress', createdAt: '2024-05-22T11:00:00Z', description: 'A large crack appeared in the main display window. A technician has been called.' },
-  { id: '105', title: 'Security Camera Offline', branchId: '4', category: 'Security', priority: 'Medium', status: 'Open', createdAt: '2024-05-22T18:45:00Z', description: 'Camera 3, pointing at the back entrance, is not recording.' },
-  { id: '106', title: 'AC Unit Malfunctioning', branchId: '5', category: 'General', priority: 'Medium', status: 'Resolved', createdAt: '2024-05-19T16:20:00Z', description: 'The air conditioning unit was not cooling properly. The filter was cleaned and it is now working.'},
-  { id: '107', title: 'Emergency Exit Light Out', branchId: '2', category: 'Electrical', priority: 'Medium', status: 'Open', createdAt: '2024-05-23T08:00:00Z', description: 'The light above the rear emergency exit is burnt out.'}
+  { id: '101', title: 'Fryer #2 not heating', branchId: '1', category: 'Kitchen Equipment', priority: 'Medium', status: 'Open', createdAt: '2024-05-20T10:00:00Z', description: 'The main fryer is failing to reach the required temperature, slowing down service.', photoUrl: getImage('incident-plumbing-1')?.imageUrl, photoHint: getImage('incident-plumbing-1')?.imageHint },
+  { id: '102', title: 'POS screen frozen', branchId: '2', category: 'Point of Sale (POS)', priority: 'High', status: 'Open', createdAt: '2024-05-21T14:30:00Z', description: 'The front counter POS terminal is completely unresponsive. Drive-thru is unaffected.', photoUrl: getImage('incident-electrical-1')?.imageUrl, photoHint: getImage('incident-electrical-1')?.imageHint },
+  { id: '103', title: 'Spill in dining area', branchId: '1', category: 'Customer Area', priority: 'Low', status: 'Resolved', createdAt: '2024-05-18T09:00:00Z', description: 'A customer spilled a drink near the entrance. The area was cleaned and a "wet floor" sign was placed.' },
+  { id: '104', title: 'Drive-thru speaker crackling', branchId: '3', category: 'Drive-Thru', priority: 'High', status: 'In Progress', createdAt: '2024-05-22T11:00:00Z', description: 'Customers are complaining that the drive-thru speaker is loud and crackling. A technician has been called.' },
+  { id: '105', title: 'Freezer temperature too high', branchId: '4', category: 'Food Safety', priority: 'Medium', status: 'Open', createdAt: '2024-05-22T18:45:00Z', description: 'The walk-in freezer temperature is reading -5°C instead of the required -18°C.' },
+  { id: '106', title: 'Bathroom out of paper towels', branchId: '5', category: 'Facilities', priority: 'Medium', status: 'Resolved', createdAt: '2024-05-19T16:20:00Z', description: 'The mens restroom dispenser was empty and has been refilled.'},
+  { id: '107', title: 'Drive-thru order screen is blank', branchId: '2', category: 'Drive-Thru', priority: 'Medium', status: 'Open', createdAt: '2024-05-23T08:00:00Z', description: 'The digital order confirmation screen in the drive-thru is not displaying anything.'}
 ];
 
 // Simulate API latency
