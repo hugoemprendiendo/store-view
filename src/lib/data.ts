@@ -4,8 +4,6 @@ import {
   doc,
   getDocs,
   getDoc,
-  addDoc,
-  updateDoc,
   query,
   where,
   writeBatch,
@@ -13,29 +11,42 @@ import {
 } from 'firebase/firestore';
 import type { Branch, Incident } from './types';
 import { getInitialBranches, getInitialIncidents } from './seed-data';
-import { getSdks } from '@/firebase';
-import { initializeApp } from 'firebase/app';
+import { getApps, initializeApp } from 'firebase/app';
 import { firebaseConfig } from '@/firebase/config';
 
 // This is a one-time setup to seed the database if it's empty.
 // In a real application, this would be handled by a proper migration or setup script.
 async function seedDatabase() {
-  const { firestore } = getSdks(initializeApp(firebaseConfig));
+  const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+  const firestore = getFirestore(app);
+  
+  const incidentsCollection = collection(firestore, 'incidents');
+  const incidentsSnapshot = await getDocs(incidentsCollection);
+  let branchesToSeed = getInitialBranches();
+  let createdBranches: Branch[] = [];
+
+  // Check if branches exist, to avoid re-seeding them.
   const branchesCollection = collection(firestore, 'branches');
   const branchesSnapshot = await getDocs(branchesCollection);
+  
   if (branchesSnapshot.empty) {
     console.log('Branches collection is empty. Seeding initial data...');
     const batch = writeBatch(firestore);
-    const initialBranches = getInitialBranches();
-    const createdBranches: Branch[] = [];
-
-    initialBranches.forEach((branch) => {
-      const docRef = doc(collection(firestore, 'branches'));
+    branchesToSeed.forEach((branch) => {
+      const docRef = doc(branchesCollection);
       batch.set(docRef, branch);
       createdBranches.push({ id: docRef.id, ...branch });
     });
-    
-    const incidentsCollection = collection(firestore, 'incidents');
+    await batch.commit();
+    console.log('Branch seeding complete.');
+  } else {
+    // If branches already exist, just fetch them to get their IDs for incidents.
+    createdBranches = branchesSnapshot.docs.map(d => ({id: d.id, ...d.data()} as Branch));
+  }
+  
+  if (incidentsSnapshot.empty && createdBranches.length > 0) {
+    console.log('Incidents collection is empty. Seeding initial data...');
+    const batch = writeBatch(firestore);
     const initialIncidents = getInitialIncidents(createdBranches);
     initialIncidents.forEach(incident => {
       const docRef = doc(incidentsCollection);
@@ -43,9 +54,10 @@ async function seedDatabase() {
     });
 
     await batch.commit();
-    console.log('Seeding complete.');
+    console.log('Incident seeding complete.');
   }
 }
+
 // Automatically try to seed when this module is loaded.
 // This is for demo purposes.
 if (typeof window !== 'undefined') {
@@ -89,26 +101,4 @@ export async function getIncidentsByBranch(firestore: any, branchId: string): Pr
     const q = query(incidentsCol, where("branchId", "==", branchId));
     const incidentSnapshot = await getDocs(q);
     return incidentSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
-}
-
-export async function createIncident(firestore: any, incidentData: Omit<Incident, 'id' | 'createdAt'>): Promise<Incident> {
-  const incidentsCol = collection(firestore, 'incidents');
-  const newDocRef = await addDoc(incidentsCol, {
-    ...incidentData,
-    createdAt: new Date().toISOString(),
-  });
-
-  const newIncident = await getDoc(newDocRef);
-  
-  return { id: newDocRef.id, ...newIncident.data() } as Incident;
-}
-
-export async function updateIncidentStatus(firestore: any, id: string, status: Incident['status']): Promise<Incident | undefined> {
-    const incidentRef = doc(firestore, 'incidents', id);
-    await updateDoc(incidentRef, { status });
-    const updatedSnap = await getDoc(incidentRef);
-    if (updatedSnap.exists()) {
-        return { id: updatedSnap.id, ...updatedSnap.data() } as Incident;
-    }
-    return undefined;
 }

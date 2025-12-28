@@ -70,6 +70,7 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
       setIsSubmitting(false);
       return;
     }
+    // The createIncident action no longer needs a firestore instance passed to it
     const result = await createIncident(data);
     if (result.success) {
       toast({
