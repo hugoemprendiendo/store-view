@@ -59,13 +59,14 @@ export default function DashboardPage() {
       return collection(firestore, 'incidents');
     }
 
-    const branchIds = branches.map(b => b.id);
-    if (branchIds.length === 1) {
-      return query(collection(firestore, 'incidents'), where('branchId', '==', branchIds[0]));
+    // For regular users, our security rules only allow querying incidents for a single branch.
+    // If the user is assigned to exactly one branch, we fetch its incidents.
+    // Otherwise, we return null to avoid making a query that would be denied.
+    if (branches.length === 1) {
+      return query(collection(firestore, 'incidents'), where('branchId', '==', branches[0].id));
     }
     
-    // If user has 0 or >1 branches, we cannot use a single `in` query due to security rules.
-    // So we return null and will show 0 incidents on the dashboard in this case to prevent errors.
+    // For users with 0 or >1 branches, return null. The dashboard will show 0 incidents.
     return null;
   }, [firestore, userProfile, branches, isLoadingBranches]);
 

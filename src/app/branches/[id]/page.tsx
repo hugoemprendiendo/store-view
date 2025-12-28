@@ -59,7 +59,8 @@ export default function BranchDetailPage() {
     }
   }, [id, firestore, isUserLoading]);
 
-  // Query for incidents related to this branch
+  // Query for incidents related to this branch.
+  // This query is allowed by security rules because it filters by a single branchId.
   const incidentsQuery = useMemoFirebase(() => {
     if (!firestore || !id) return null;
     return query(collection(firestore, 'incidents'), where('branchId', '==', id));
