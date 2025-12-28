@@ -33,7 +33,6 @@ export default function DashboardPage() {
     async function fetchUserBranches() {
       if (userProfile.assignedBranches && userProfile.assignedBranches.length > 0) {
         try {
-          // Use Promise.all with getDoc for each assigned branch ID
           const branchPromises = userProfile.assignedBranches.map(id => getDoc(doc(firestore, 'branches', id)));
           const branchSnapshots = await Promise.all(branchPromises);
           const branchesData = branchSnapshots
@@ -65,22 +64,28 @@ export default function DashboardPage() {
     }
 
     const branchIds = branches.map(b => b.id);
-    if (branchIds.length > 0) {
-       // A user can only query incidents for one branch at a time as per security rules.
-       // Here we will query for the first assigned branch. For a more complete solution,
-       // this would require multiple queries or a different data model.
-       // For this dashboard, we'll focus on just the first branch to avoid permission errors.
-       // A more complex implementation might run N queries, one for each branch.
+    // IMPORTANT: Firestore security rules for 'list' don't support 'in' queries
+    // against a user's permissions array in another document. So, a user can only
+    // query incidents for ONE branch at a time.
+    // If the user is assigned to more than one branch, we can't reliably load all
+    // incidents on the dashboard without making N separate queries, which is complex
+    // with hooks. For now, we will only query if they are assigned to exactly ONE branch.
+    // Otherwise, we return null to avoid a permission error.
+    if (branchIds.length === 1) {
       return query(collection(firestore, 'incidents'), where('branchId', '==', branchIds[0]));
     }
-
-    // Return a query that finds nothing if user has no branches
-    return query(collection(firestore, 'incidents'), where('branchId', 'in', ['non-existent-id']));
+    
+    // If user has 0 or >1 branches, return null for the query.
+    // We will show 0 incidents on the dashboard in this case to prevent errors.
+    return null;
   }, [firestore, userProfile, branches, isLoadingBranches]);
 
-  const { data: incidents, isLoading: isLoadingIncidents } = useCollection<Incident>(incidentsQuery);
+  const { data: incidentsData, isLoading: isLoadingIncidents } = useCollection<Incident>(incidentsQuery);
 
-  const isLoading = isProfileLoading || isLoadingBranches || (incidents === null && isLoadingIncidents);
+  const incidents = incidentsQuery ? incidentsData : [];
+
+  const isLoading = isProfileLoading || isLoadingBranches || (incidentsQuery !== null && isLoadingIncidents);
+
 
   if (isLoading || !user) {
     return (

@@ -24,9 +24,9 @@ service cloud.firestore {
     }
 
     function isAssignedToBranch(branchId) {
+      let userDoc = getUserData(request.auth.uid);
       // This rule is for non-admin users. It checks if a branchId is in their assigned list.
       // It assumes the user document exists and has the 'assignedBranches' field.
-      let userDoc = getUserData(request.auth.uid);
       return 'assignedBranches' in userDoc && branchId in userDoc.assignedBranches;
     }
 
@@ -58,15 +58,12 @@ service cloud.firestore {
       allow get, write: if isSuperAdmin() || isAssignedToBranch(getBranchIdForIncident());
 
       // Superadmins can list all incidents.
-      // Users can list incidents ONLY if the query is filtered by a branchId they are assigned to.
+      // A non-admin user can ONLY list incidents if the query is filtered by a SINGLE branchId
+      // that they are assigned to.
       allow list: if isSuperAdmin() || (
         isSignedIn() &&
-        request.query.keys().hasAny(['where']) &&
-        // Ensure the query is filtering by branchId
-        string(request.query.where[0][0]) == 'branchId' && 
-        string(request.query.where[0][1]) == '==' &&
-        // Check if the user is assigned to the specific branchId in the query
-        isAssignedToBranch(request.query.where[0][2])
+        'branchId' in request.query.where &&
+        isAssignedToBranch(request.query.where.branchId)
       );
     }
   }
