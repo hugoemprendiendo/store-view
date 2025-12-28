@@ -38,18 +38,14 @@ export default function BranchesPage() {
       let branchesData: Branch[] = [];
       try {
         if (userProfile.role === 'superadmin') {
-          // Superadmin can fetch all branches
           branchesData = await getBranches(firestore);
         } else if (userProfile.assignedBranches && userProfile.assignedBranches.length > 0) {
-          // For regular users, fetch each assigned branch document individually.
-          // This aligns with security rules that only allow `get` operations for assigned users.
           const branchPromises = userProfile.assignedBranches.map(id => getDoc(doc(firestore, 'branches', id)));
           const branchSnapshots = await Promise.all(branchPromises);
           branchesData = branchSnapshots
             .filter(snap => snap.exists())
             .map(snap => ({ id: snap.id, ...snap.data() } as Branch));
         }
-        // If user is not superadmin and has no assigned branches, branchesData will be empty.
       } catch (error) {
         console.error("Error fetching branches: ", error);
       } finally {
