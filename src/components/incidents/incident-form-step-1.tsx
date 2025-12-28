@@ -86,15 +86,17 @@ export function IncidentFormStep1({ onStepComplete }: IncidentFormStep1Props) {
                     description: 'El audio ha sido transcrito.',
                 });
             } else {
-                throw new Error(result.error || 'La transcripción falló');
+                // If the server action returns an error, we now have a detailed message.
+                // We use this message in the toast to inform the user.
+                throw new Error(result.error || 'La transcripción falló por una razón desconocida.');
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error de transcripción:', error);
-            const description = error instanceof Error ? error.message : 'No se pudo transcribir el audio grabado.';
+            // Display the detailed error message from the catch block.
             toast({
                 variant: 'destructive',
                 title: 'Fallo en la Transcripción',
-                description,
+                description: error.message || 'No se pudo transcribir el audio grabado.',
             });
         } finally {
             setIsTranscribing(false);

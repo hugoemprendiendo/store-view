@@ -18,9 +18,10 @@ export async function transcribeAudio(input: TranscribeAudioInput) {
   try {
     const result = await aiTranscribeAudio(input);
     return { success: true, data: result };
-  } catch (error) {
-    console.error(error);
-    return { success: false, error: 'Failed to transcribe audio.' };
+  } catch (error: any) {
+    console.error('Error in transcribeAudio server action:', error);
+    // Propagate the actual error message to the client
+    return { success: false, error: error.message || 'An unknown error occurred during transcription.' };
   }
 }
 
