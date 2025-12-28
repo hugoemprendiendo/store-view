@@ -37,6 +37,22 @@ const branches: Branch[] = [
   { id: '30', name: 'DQ Puebla 3', region: 'Puebla', brand: 'DQ', address: 'Cruz del Sur, Puebla, PUE', imageUrl: getImage('branch-6')?.imageUrl!, imageHint: getImage('branch-6')?.imageHint! },
   { id: '31', name: 'DQ Puebla 4', region: 'Puebla', brand: 'DQ', address: 'Parque Puebla, Puebla, PUE', imageUrl: getImage('branch-1')?.imageUrl!, imageHint: getImage('branch-1')?.imageHint! },
   { id: '32', name: 'DQ Puebla 5', region: 'Puebla', brand: 'DQ', address: 'Plaza San Pedro, Puebla, PUE', imageUrl: getImage('branch-2')?.imageUrl!, imageHint: getImage('branch-2')?.imageHint! },
+  // Veracruz
+  { id: '33', name: 'KFC Veracruz 1', region: 'Veracruz', brand: 'KFC', address: 'Plaza Las Americas, Boca del Rio, VER', imageUrl: getImage('branch-1')?.imageUrl!, imageHint: getImage('branch-1')?.imageHint! },
+  { id: '34', name: 'KFC Veracruz 2', region: 'Veracruz', brand: 'KFC', address: 'Malecon, Veracruz, VER', imageUrl: getImage('branch-2')?.imageUrl!, imageHint: getImage('branch-2')?.imageHint! },
+  { id: '35', name: 'KFC Veracruz 3', region: 'Veracruz', brand: 'KFC', address: 'Plaza Mocambo, Boca del Rio, VER', imageUrl: getImage('branch-3')?.imageUrl!, imageHint: getImage('branch-3')?.imageHint! },
+  { id: '36', name: 'KFC Veracruz 4', region: 'Veracruz', brand: 'KFC', address: 'Av. Diaz Miron, Veracruz, VER', imageUrl: getImage('branch-4')?.imageUrl!, imageHint: getImage('branch-4')?.imageHint! },
+  { id: '37', name: 'KFC Veracruz 5', region: 'Veracruz', brand: 'KFC', address: 'Plaza Crystal, Veracruz, VER', imageUrl: getImage('branch-5')?.imageUrl!, imageHint: getImage('branch-5')?.imageHint! },
+  { id: '38', name: 'KFC Veracruz 6', region: 'Veracruz', brand: 'KFC', address: 'Plaza El Dorado, Boca del Rio, VER', imageUrl: getImage('branch-6')?.imageUrl!, imageHint: getImage('branch-6')?.imageHint! },
+  { id: '39', name: 'KFC Veracruz 7', region: 'Veracruz', brand: 'KFC', address: 'Av. Rafael Cuervo, Veracruz, VER', imageUrl: getImage('branch-1')?.imageUrl!, imageHint: getImage('branch-1')?.imageHint! },
+  { id: '40', name: 'DQ Veracruz 1', region: 'Veracruz', brand: 'DQ', address: 'Plaza Andamar, Boca del Rio, VER', imageUrl: getImage('branch-2')?.imageUrl!, imageHint: getImage('branch-2')?.imageHint! },
+  { id: '41', name: 'DQ Veracruz 2', region: 'Veracruz', brand: 'DQ', address: 'Plaza Vela, Boca del Rio, VER', imageUrl: getImage('branch-3')?.imageUrl!, imageHint: getImage('branch-3')?.imageHint! },
+  { id: '42', name: 'DQ Veracruz 3', region: 'Veracruz', brand: 'DQ', address: 'Plaza Sol, Boca del Rio, VER', imageUrl: getImage('branch-4')?.imageUrl!, imageHint: getImage('branch-4')?.imageHint! },
+  { id: '43', name: 'DQ Veracruz 4', region: 'Veracruz', brand: 'DQ', address: 'Zocalo, Veracruz, VER', imageUrl: getImage('branch-5')?.imageUrl!, imageHint: getImage('branch-5')?.imageHint! },
+  { id: '44', name: 'DQ Veracruz 5', region: 'Veracruz', brand: 'DQ', address: 'Reforma, Veracruz, VER', imageUrl: getImage('branch-6')?.imageUrl!, imageHint: getImage('branch-6')?.imageHint! },
+  { id: '45', name: 'DQ Veracruz 6', region: 'Veracruz', brand: 'DQ', address: 'Costa de Oro, Boca del Rio, VER', imageUrl: getImage('branch-1')?.imageUrl!, imageHint: getImage('branch-1')?.imageHint! },
+  { id: '46', name: 'DQ Veracruz 7', region: 'Veracruz', brand: 'DQ', address: 'Plaza Rio, Boca del Rio, VER', imageUrl: getImage('branch-2')?.imageUrl!, imageHint: getImage('branch-2')?.imageHint! },
+  { id: '47', name: 'DQ Veracruz 8', region: 'Veracruz', brand: 'DQ', address: 'Av. Ejercito Mexicano, Boca del Rio, VER', imageUrl: getImage('branch-3')?.imageUrl!, imageHint: getImage('branch-3')?.imageHint! },
 ];
 
 let incidents: Incident[] = [
