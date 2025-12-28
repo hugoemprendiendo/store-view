@@ -127,7 +127,7 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Descripción de Texto</FormLabel>
+                  <FormLabel>Descripción Sugerida por la IA</FormLabel>
                   <FormControl>
                     <Textarea placeholder="Una descripción detallada de la incidencia..." {...field} className="h-[200px]" disabled={isBusy} />
                   </FormControl>
@@ -135,21 +135,6 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
                 </FormItem>
               )}
             />
-            {form.getValues('audioTranscription') && (
-              <FormField
-                control={form.control}
-                name="audioTranscription"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Transcripción de Audio</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="El audio grabado se transcribirá aquí." {...field} disabled />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
           </div>
           <div className="space-y-8">
             <FormField

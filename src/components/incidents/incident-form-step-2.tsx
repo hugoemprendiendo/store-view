@@ -141,19 +141,11 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
                             </div>
                         </div>
                     )}
-                    {(incidentData.audioTranscription || incidentData.textDescription) && (
+                    {incidentData.textDescription && (
                         <div className="md:col-span-2">
-                             <h4 className="font-medium mb-2 text-sm">Descripción Proporcionada</h4>
+                             <h4 className="font-medium mb-2 text-sm">Descripción Original</h4>
                             <div className="prose prose-sm dark:prose-invert max-w-none border rounded-md p-4 bg-muted max-h-48 overflow-y-auto">
-                                {incidentData.audioTranscription && !incidentData.textDescription && <blockquote>{incidentData.audioTranscription}</blockquote>}
-                                {incidentData.textDescription && <p>{incidentData.textDescription}</p>}
-                                {incidentData.audioTranscription && incidentData.textDescription && (
-                                    <>
-                                        <p>{incidentData.textDescription}</p>
-                                        <hr />
-                                        <blockquote>{incidentData.audioTranscription}</blockquote>
-                                    </>
-                                )}
+                                <p>{incidentData.textDescription}</p>
                             </div>
                         </div>
                     )}
