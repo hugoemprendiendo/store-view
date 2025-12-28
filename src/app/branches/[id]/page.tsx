@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getBranchById, getIncidentsByBranch } from '@/lib/data';
-import { notFound, useParams } from 'next/navigation';
+import { notFound, useParams, useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,8 +15,7 @@ import type { Branch, Incident } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { updateIncidentStatus } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 
 const priorityVariantMap = {
   Low: 'secondary',
@@ -26,6 +25,7 @@ const priorityVariantMap = {
 
 export default function BranchDetailPage() {
   const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
   const params = useParams();
   const id = params.id as string;
   const { toast } = useToast();
@@ -38,11 +38,14 @@ export default function BranchDetailPage() {
 
   useEffect(() => {
     async function fetchData() {
+      if (!id || !firestore || !user) return;
+
       setIsLoading(true);
       try {
         const branchData = await getBranchById(firestore, id);
         if (!branchData) {
           notFound();
+          return;
         }
         setBranch(branchData);
         const incidentsData = await getIncidentsByBranch(firestore, id);
@@ -53,10 +56,8 @@ export default function BranchDetailPage() {
         setIsLoading(false);
       }
     }
-    if (id && firestore) {
-      fetchData();
-    }
-  }, [id, firestore]);
+    fetchData();
+  }, [id, firestore, user]);
 
   const handleStatusChange = async (incidentId: string, newStatus: Incident['status']) => {
     setUpdatingStatus(incidentId);
@@ -71,7 +72,7 @@ export default function BranchDetailPage() {
         title: 'Estado Actualizado',
         description: `El estado de la incidencia cambió a "${newStatus}".`,
       });
-      // The revalidation in the action should handle refreshing data across the app.
+      // Re-fetch data to get the latest state after action's revalidation
       router.refresh();
     } else {
       // Revert on failure
@@ -85,7 +86,7 @@ export default function BranchDetailPage() {
     setUpdatingStatus(null);
   };
   
-  if (isLoading) {
+  if (isLoading || isUserLoading) {
     return (
         <div className="flex flex-col gap-6">
              <Header title="Cargando..." />

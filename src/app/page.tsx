@@ -25,7 +25,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function fetchData() {
-      if (!user) return;
+      if (!user || !firestore) return;
       setIsLoading(true);
       const [branchesData, incidentsData] = await Promise.all([
         getBranches(firestore),
@@ -38,7 +38,7 @@ export default function DashboardPage() {
     fetchData();
   }, [firestore, user]);
 
-  if (isLoading || isUserLoading) {
+  if (isUserLoading || (isLoading && user)) {
     return (
       <div className="flex flex-col gap-6">
         <Header title="Panel de Control" />

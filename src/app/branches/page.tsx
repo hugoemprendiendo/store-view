@@ -17,23 +17,25 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Eye, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 
 export default function BranchesPage() {
   const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedRegion, setSelectedRegion] = useState('all');
 
   useEffect(() => {
     async function fetchData() {
+      if (!user || !firestore) return;
       setIsLoading(true);
       const branchesData = await getBranches(firestore);
       setBranches(branchesData);
       setIsLoading(false);
     }
     fetchData();
-  }, [firestore]);
+  }, [firestore, user]);
 
   const regions = useMemo(() => {
     return ['all', ...Array.from(new Set(branches.map((b) => b.region)))];
@@ -45,6 +47,17 @@ export default function BranchesPage() {
     }
     return branches.filter((branch) => branch.region === selectedRegion);
   }, [branches, selectedRegion]);
+
+  if (isLoading || isUserLoading) {
+      return (
+          <div className="flex flex-col gap-6">
+              <Header title="Sucursales" />
+              <div className="flex justify-center items-center h-64">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+          </div>
+      )
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -68,11 +81,7 @@ export default function BranchesPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="flex justify-center items-center h-48">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
+          
             <Table>
               <TableHeader>
                 <TableRow>
@@ -102,7 +111,7 @@ export default function BranchesPage() {
                 ))}
               </TableBody>
             </Table>
-          )}
+          
         </CardContent>
       </Card>
     </div>

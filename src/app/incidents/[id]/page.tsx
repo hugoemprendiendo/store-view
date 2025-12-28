@@ -5,11 +5,12 @@ import { Header } from '@/components/layout/header';
 import IncidentDetails from '@/components/incidents/incident-details';
 import { useEffect, useState } from 'react';
 import type { Branch, Incident } from '@/lib/types';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { Loader2 } from 'lucide-react';
 
 export default function IncidentDetailPage() {
   const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
   const params = useParams();
   const id = params.id as string;
 
@@ -19,7 +20,7 @@ export default function IncidentDetailPage() {
 
   useEffect(() => {
     async function fetchData() {
-      if (!id || !firestore) return;
+      if (!id || !firestore || !user) return;
       setIsLoading(true);
       const incidentData = await getIncidentById(firestore, id);
       if (!incidentData) {
@@ -37,9 +38,9 @@ export default function IncidentDetailPage() {
       setIsLoading(false);
     }
     fetchData();
-  }, [id, firestore]);
+  }, [id, firestore, user]);
 
-  if (isLoading) {
+  if (isLoading || isUserLoading) {
     return (
       <div className="flex flex-col gap-4">
         <Header title="Detalles de la Incidencia" />
