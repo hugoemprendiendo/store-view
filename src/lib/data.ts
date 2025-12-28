@@ -12,7 +12,7 @@ import {
   getFirestore,
 } from 'firebase/firestore';
 import type { Branch, Incident } from './types';
-import { getInitialBranches } from './seed-data';
+import { getInitialBranches, getInitialIncidents } from './seed-data';
 import { getSdks } from '@/firebase';
 import { initializeApp } from 'firebase/app';
 import { firebaseConfig } from '@/firebase/config';
@@ -22,15 +22,26 @@ import { firebaseConfig } from '@/firebase/config';
 async function seedDatabase() {
   const { firestore } = getSdks(initializeApp(firebaseConfig));
   const branchesCollection = collection(firestore, 'branches');
-  const snapshot = await getDocs(branchesCollection);
-  if (snapshot.empty) {
-    console.log('Database is empty. Seeding initial data...');
+  const branchesSnapshot = await getDocs(branchesCollection);
+  if (branchesSnapshot.empty) {
+    console.log('Branches collection is empty. Seeding initial data...');
     const batch = writeBatch(firestore);
     const initialBranches = getInitialBranches();
+    const createdBranches: Branch[] = [];
+
     initialBranches.forEach((branch) => {
       const docRef = doc(collection(firestore, 'branches'));
-      batch.set(docRef, { ...branch, id: docRef.id });
+      batch.set(docRef, branch);
+      createdBranches.push({ id: docRef.id, ...branch });
     });
+    
+    const incidentsCollection = collection(firestore, 'incidents');
+    const initialIncidents = getInitialIncidents(createdBranches);
+    initialIncidents.forEach(incident => {
+      const docRef = doc(incidentsCollection);
+      batch.set(docRef, { ...incident, createdAt: new Date().toISOString() });
+    });
+
     await batch.commit();
     console.log('Seeding complete.');
   }

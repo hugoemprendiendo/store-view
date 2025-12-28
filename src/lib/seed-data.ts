@@ -1,4 +1,4 @@
-import type { Branch } from './types';
+import type { Branch, Incident } from './types';
 import { PlaceHolderImages } from './placeholder-images';
 
 function getImage(id: string) {
@@ -55,4 +55,51 @@ export function getInitialBranches(): Omit<Branch, 'id'>[] {
       { name: 'DQ Veracruz 7', region: 'Veracruz', brand: 'DQ', address: 'Plaza Rio, Boca del Rio, VER', imageUrl: getImage('branch-2')?.imageUrl!, imageHint: getImage('branch-2')?.imageHint! },
       { name: 'DQ Veracruz 8', region: 'Veracruz', brand: 'DQ', address: 'Av. Ejercito Mexicano, Boca del Rio, VER', imageUrl: getImage('branch-3')?.imageUrl!, imageHint: getImage('branch-3')?.imageHint! },
     ];
+}
+
+export function getInitialIncidents(branches: Branch[]): Omit<Incident, 'id' | 'createdAt'>[] {
+    const xalapaKFC = branches.find(b => b.name === 'KFC Xalapa 1');
+    const slpDQ = branches.find(b => b.name === 'Dairy Queen Villa Magna');
+    const meridaKFC = branches.find(b => b.name === 'KFC Merida 1');
+
+    const incidents: Omit<Incident, 'id' | 'createdAt'>[] = [];
+
+    if (xalapaKFC) {
+        incidents.push({
+            title: 'Fuga de agua en el baño',
+            branchId: xalapaKFC.id,
+            description: 'Se reporta una fuga de agua constante en el baño de hombres, cerca del lavamanos.',
+            photoUrl: getImage('incident-plumbing-1')?.imageUrl,
+            photoHint: getImage('incident-plumbing-1')?.imageHint,
+            category: 'Instalaciones',
+            priority: 'Medium',
+            status: 'Abierto',
+        });
+    }
+
+    if (slpDQ) {
+        incidents.push({
+            title: 'Falla en máquina de helado',
+            branchId: slpDQ.id,
+            description: 'La máquina de helado suave no enfría correctamente y el producto sale derretido.',
+            category: 'Equipo de Cocina',
+            priority: 'High',
+            status: 'En Progreso',
+        });
+    }
+    
+    if (meridaKFC) {
+        incidents.push({
+            title: 'Outlet quemado en la cocina',
+            branchId: meridaKFC.id,
+            description: 'El enchufe utilizado para la freidora de pollo principal está quemado y echando humo.',
+            photoUrl: getImage('incident-electrical-1')?.imageUrl,
+            photoHint: getImage('incident-electrical-1')?.imageHint,
+            category: 'Instalaciones',
+            priority: 'High',
+            status: 'Abierto',
+        });
+    }
+
+    return incidents;
 }

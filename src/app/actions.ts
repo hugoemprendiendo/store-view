@@ -51,7 +51,7 @@ export async function createIncident(data: Omit<Incident, 'id' | 'createdAt'>) {
         revalidatePath(`/branches/${data.branchId}`);
         return { success: true, data: newIncident };
     } catch (error) {
-        console.error(error);
+        console.error("Error in createIncident action:", error);
         return { success: false, error: 'Failed to create incident.' };
     }
 }
