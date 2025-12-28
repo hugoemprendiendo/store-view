@@ -4,13 +4,14 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, Cpu, DollarSign } from 'lucide-react';
+import { Loader2, ArrowLeft, Cpu, DollarSign, Info } from 'lucide-react';
 import { getAIAnalysis } from '@/app/actions';
 import { IncidentReviewForm } from '@/components/incidents/incident-form';
 import type { IncidentData } from '@/app/incidents/new/page';
 import type { AnalyzeIncidentReportOutput } from '@/ai/flows/analyze-incident-report';
 import Image from 'next/image';
 import { calculateCost } from '@/lib/ai-pricing';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface IncidentFormStep2Props {
     incidentData: IncidentData;
@@ -106,6 +107,7 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
                         suggestedDescription: incidentData.textDescription || '',
                         photoUrl: incidentData.photoDataUri,
                         audioTranscription: incidentData.audioTranscription,
+                        suggestedPriorityReasoning: '',
                     }} />
                 </CardContent>
                 <CardFooter className="flex justify-start">
@@ -127,6 +129,16 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
                 </CardDescription>
             </CardHeader>
             <CardContent>
+                {analysisResult.suggestedPriorityReasoning && (
+                    <Alert className="mb-6">
+                        <Info className="h-4 w-4" />
+                        <AlertTitle>Justificación de la Prioridad</AlertTitle>
+                        <AlertDescription>
+                            {analysisResult.suggestedPriorityReasoning}
+                        </AlertDescription>
+                    </Alert>
+                )}
+
                  <div className="grid gap-6 md:grid-cols-3 mb-6">
                     {incidentData.photoDataUri && (
                         <div className="md:col-span-1">
@@ -141,11 +153,11 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
                             </div>
                         </div>
                     )}
-                    {incidentData.textDescription && (
+                    {incidentData.audioTranscription && (
                         <div className="md:col-span-2">
-                             <h4 className="font-medium mb-2 text-sm">Descripción Original</h4>
+                             <h4 className="font-medium mb-2 text-sm">Transcripción de Audio</h4>
                             <div className="prose prose-sm dark:prose-invert max-w-none border rounded-md p-4 bg-muted max-h-48 overflow-y-auto">
-                                <p>{incidentData.textDescription}</p>
+                                <blockquote>{incidentData.audioTranscription}</blockquote>
                             </div>
                         </div>
                     )}

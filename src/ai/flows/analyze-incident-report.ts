@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { IncidentCategories } from '@/lib/types';
 
 const AnalyzeIncidentReportInputSchema = z.object({
   photoDataUri: z
@@ -27,6 +28,7 @@ const AnalyzeIncidentReportOutputSchema = z.object({
   suggestedTitle: z.string().describe('A suggested title for the incident report.'),
   suggestedCategory: z.string().describe('A suggested category for the incident report.'),
   suggestedPriority: z.string().describe('A suggested priority for the incident report (e.g., High, Medium, Low).'),
+  suggestedPriorityReasoning: z.string().describe('A brief explanation for why the priority was chosen.'),
   suggestedStatus: z.string().describe('A suggested status for the incident report (e.g., Open, In Progress, Resolved).'),
   suggestedDescription: z.string().describe('A detailed, structured description of the incident based on the available evidence (photo, audio, text).'),
   inputTokens: z.number().optional().describe('The number of tokens used in the input.'),
@@ -50,10 +52,14 @@ const analyzeIncidentReportPrompt = ai.definePrompt({
   Basado en la información proporcionada, sugiere un título, categoría, prioridad, estado y una descripción detallada y estructurada para el reporte de incidencia. Todos los campos de salida DEBEN estar en español.
   La descripción debe resumir toda la evidencia proporcionada.
 
+  Al determinar la categoría, DEBES elegir uno de los siguientes valores: ${IncidentCategories.join(', ')}.
+
   Al determinar la prioridad, usa la siguiente lógica y asegúrate de devolver solo uno de los valores 'High', 'Medium' o 'Low':
   - Prioridad 'High': Si la incidencia impide que la tienda opere.
   - Prioridad 'Medium': Si la tienda puede operar, pero con problemas o de forma limitada.
   - Prioridad 'Low': Si la incidencia no afecta la operación principal de la tienda.
+
+  Después de elegir la prioridad, proporciona una breve explicación en 'suggestedPriorityReasoning' de por qué elegiste ese nivel de prioridad, basándote en la lógica anterior.
   
   Responde en formato JSON.
 

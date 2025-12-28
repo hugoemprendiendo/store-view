@@ -17,7 +17,7 @@ import { Loader2, Send } from 'lucide-react';
 import React from 'react';
 import type { AnalyzeIncidentReportOutput } from '@/ai/flows/analyze-incident-report';
 import { useFirestore } from '@/firebase';
-import { collection, addDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc } from 'firebase/firestore';
 
 const incidentSchema = z.object({
   branchId: z.string().min(1, 'La sucursal es obligatoria.'),
@@ -39,6 +39,12 @@ interface IncidentReviewFormProps {
   };
 }
 
+// Helper function to find a value in an array, ignoring case.
+const findCaseInsensitive = (array: readonly string[], value: string): string | undefined => {
+  if (!value) return undefined;
+  return array.find(item => item.toLowerCase() === value.toLowerCase());
+}
+
 export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -52,8 +58,8 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
     defaultValues: {
       branchId: branchId || '',
       title: initialData.suggestedTitle || '',
-      category: IncidentCategories.includes(initialData.suggestedCategory) ? initialData.suggestedCategory : '',
-      priority: IncidentPriorities.includes(initialData.suggestedPriority as any) ? initialData.suggestedPriority as any : 'Medium',
+      category: findCaseInsensitive(IncidentCategories, initialData.suggestedCategory) || '',
+      priority: (findCaseInsensitive(IncidentPriorities, initialData.suggestedPriority as any) as any) || 'Medium',
       status: 'Abierto',
       description: initialData.suggestedDescription || '',
       audioTranscription: initialData.audioTranscription || '',
@@ -63,6 +69,11 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
 
   const onSubmit = async (data: IncidentFormValues) => {
     setIsSubmitting(true);
+    if (!firestore) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se puede conectar a la base de datos.' });
+        setIsSubmitting(false);
+        return;
+    }
     if (!data.branchId) {
       toast({
         variant: 'destructive',
