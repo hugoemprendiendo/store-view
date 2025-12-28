@@ -11,6 +11,7 @@ service cloud.firestore {
     // Check if the user trying to write is the first user in the database.
     function isFirstUser() {
       // `exists` checks current state. We check that no other user docs exist before this write.
+      // We look for documents inside the 'users' collection.
       return !exists(/databases/$(database)/documents/users);
     }
     
@@ -19,16 +20,21 @@ service cloud.firestore {
     }
     
     function isSuperAdmin() {
+      // This refers to the role in the data being written.
       return request.resource.data.role == 'superadmin';
     }
     
     function isUser() {
+      // This refers to the role in the data being written.
       return request.resource.data.role == 'user';
     }
 
     // /users/{userId}
     match /users/{userId} {
       // Allow user creation under specific conditions.
+      // A user can create their own profile.
+      // If it's the first user ever, they must be a superadmin.
+      // If it's not the first user, they must be a regular user.
       allow create: if isCreatingOwnProfile(userId) &&
                        ((isFirstUser() && isSuperAdmin()) || (!isFirstUser() && isUser()));
       
