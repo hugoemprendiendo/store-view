@@ -24,16 +24,16 @@ export function BranchCard({ branch, incidents }: BranchCardProps) {
   const status = getBranchStatus(incidents);
 
   const statusClasses = {
-    ok: 'bg-green-100 border-green-500 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-900/50',
-    warning: 'bg-yellow-100 border-yellow-500 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:border-yellow-700 dark:text-yellow-300 dark:hover:bg-yellow-900/50',
-    error: 'bg-red-100 border-red-500 text-red-800 hover:bg-red-200 dark:bg-red-900/30 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/50',
+    ok: 'bg-green-500/10 border-green-500/50 text-green-800 hover:bg-green-500/20 dark:text-green-300',
+    warning: 'bg-yellow-500/10 border-yellow-500/50 text-yellow-800 hover:bg-yellow-500/20 dark:text-yellow-300',
+    error: 'bg-red-500/10 border-red-500/50 text-red-800 hover:bg-red-500/20 dark:text-red-300',
   };
 
   return (
     <Link href={`/branches/${branch.id}`} className="group block">
       <Card
         className={cn(
-          'transition-all duration-200 ease-in-out group-hover:shadow-lg group-hover:-translate-y-1 border-2 h-full',
+          'transition-all duration-200 ease-in-out group-hover:shadow-lg group-hover:-translate-y-1 border h-full',
           statusClasses[status]
         )}
       >
