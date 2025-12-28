@@ -27,7 +27,7 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { Loader2, UserPlus, Store } from 'lucide-react';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDocs, collection } from 'firebase/firestore';
 
 const signupSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres.'),
@@ -53,20 +53,27 @@ export default function SignupPage() {
   const onSubmit = async (values: z.infer<typeof signupSchema>) => {
     setIsSubmitting(true);
     try {
+      // Check if any user exists to determine the role
+      const usersCollection = collection(firestore, 'users');
+      const usersSnapshot = await getDocs(usersCollection);
+      const isFirstUser = usersSnapshot.empty;
+      const role = isFirstUser ? 'superadmin' : 'user';
+
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
-      // Create a user profile document in Firestore
+      // Create a user profile document in Firestore with the determined role
       const userProfileRef = doc(firestore, 'users', user.uid);
       await setDoc(userProfileRef, {
         name: values.name,
         email: values.email,
         createdAt: new Date().toISOString(),
+        role: role, // Add the role to the document
       });
 
       toast({
         title: 'Registro Exitoso',
-        description: 'Tu cuenta ha sido creada. Serás redirigido.',
+        description: `Tu cuenta ha sido creada con el rol de ${role}.`,
       });
       // The AuthProvider will handle redirection
     } catch (error: any) {

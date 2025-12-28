@@ -10,18 +10,30 @@ service cloud.firestore {
     
     // Check if the user trying to write is the first user in the database.
     function isFirstUser() {
-      // `existsAfter` checks the state *after* the write would be committed.
-      // We check that no other user documents exist besides the one being created.
-      return existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             getAfter(/databases/$(database)/documents/users).size() == 1;
+      // `exists` checks current state. We check that no other user docs exist before this write.
+      return !exists(/databases/$(database)/documents/users);
+    }
+    
+    function isCreatingOwnProfile(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function isSuperAdmin() {
+      return request.resource.data.role == 'superadmin';
+    }
+    
+    function isUser() {
+      return request.resource.data.role == 'user';
     }
 
     // /users/{userId}
     match /users/{userId} {
-      // Anyone can create their own user profile.
-      allow create: if request.auth.uid == userId;
+      // Allow user creation under specific conditions.
+      allow create: if isCreatingOwnProfile(userId) &&
+                       ((isFirstUser() && isSuperAdmin()) || (!isFirstUser() && isUser()));
+      
       // Only the user themselves can read or update their own profile.
-      allow read, update: if request.auth.uid == userId;
+      allow read, update: if isCreatingOwnProfile(userId);
     }
 
     // /branches/{branchId}
