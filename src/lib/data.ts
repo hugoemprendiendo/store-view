@@ -7,11 +7,11 @@ function getImage(id: string) {
 
 const branches: Branch[] = [
   { id: '1', name: 'KFC - Metropolis Central', region: 'North', brand: 'KFC', address: '123 Colonel St, Metropolis, USA', imageUrl: getImage('branch-1')?.imageUrl!, imageHint: getImage('branch-1')?.imageHint! },
-  { id: '2', name: 'DQ - Gotham West', region: 'West', brand: 'DQ', address: '456 Blizzard Ave, Gotham, USA', imageUrl: getImage('branch-2')?.imageUrl!, imageHint: getImage('branch-2')?.imageHint! },
+  { id: '2', name: 'DQ - Plaza Crystal', region: 'West', brand: 'DQ', address: 'Av de la República, Xalapa, VER', imageUrl: getImage('branch-2')?.imageUrl!, imageHint: getImage('branch-2')?.imageHint! },
   { id: '3', name: 'KFC - Star City East', region: 'East', brand: 'KFC', address: '789 Zinger Ln, Star City, USA', imageUrl: getImage('branch-3')?.imageUrl!, imageHint: getImage('branch-3')?.imageHint! },
-  { id: '4', name: 'DQ - Central City North', region: 'North', brand: 'DQ', address: '101 Grill Dr, Central City, USA', imageUrl: getImage('branch-4')?.imageUrl!, imageHint: getImage('branch-4')?.imageHint! },
+  { id: '4', name: 'DQ - Plaza Paseo Jardines', region: 'North', brand: 'DQ', address: 'Paseo Jardines, Xalapa, VER', imageUrl: getImage('branch-4')?.imageUrl!, imageHint: getImage('branch-4')?.imageHint! },
   { id: '5', name: 'KFC - Coast City South', region: 'South', brand: 'KFC', address: '212 Bucket Rd, Coast City, USA', imageUrl: getImage('branch-5')?.imageUrl!, imageHint: getImage('branch-5')?.imageHint! },
-  { id: '6', name: 'DQ - Keystone West', region: 'West', brand: 'DQ', address: '333 Treat St, Keystone, USA', imageUrl: getImage('branch-6')?.imageUrl!, imageHint: getImage('branch-6')?.imageHint! },
+  { id: '6', name: 'DQ - Animas', region: 'West', brand: 'DQ', address: 'SIPEH Animas, Xalapa, VER', imageUrl: getImage('branch-6')?.imageUrl!, imageHint: getImage('branch-6')?.imageHint! },
 ];
 
 let incidents: Incident[] = [
