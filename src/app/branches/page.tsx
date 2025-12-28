@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/table';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Eye, Loader2, X } from 'lucide-react';
+import { Eye, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useFirestore, useUser } from '@/firebase';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -49,10 +49,12 @@ export default function BranchesPage() {
               .map(snap => ({ id: snap.id, ...snap.data() } as Branch));
           }
         }
+        setBranches(branchesData);
       } catch (error) {
         console.error("Error fetching branches: ", error);
+        // Re-throw the error to be caught by an error boundary
+        throw error;
       } finally {
-        setBranches(branchesData);
         setIsLoading(false);
       }
     }
@@ -72,10 +74,6 @@ export default function BranchesPage() {
     }
     return branches.filter((branch) => branch.region === selectedRegion);
   }, [branches, selectedRegion]);
-
-  const handleClearFilters = () => {
-    setSelectedRegion('all');
-  };
 
   const totalLoading = isLoading || isUserLoading || isProfileLoading;
 
@@ -151,15 +149,6 @@ export default function BranchesPage() {
           
         </CardContent>
       </Card>
-      
-      {selectedRegion !== 'all' && (
-        <div className="fixed bottom-6 left-6 z-50">
-            <Button variant="outline" onClick={handleClearFilters}>
-                <X className="mr-2 h-4 w-4" />
-                Limpiar
-            </Button>
-        </div>
-      )}
     </div>
   );
 }

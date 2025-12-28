@@ -8,6 +8,7 @@ import {
   where,
   writeBatch,
   getFirestore,
+  Firestore,
 } from 'firebase/firestore';
 import type { Branch, Incident } from './types';
 import { getInitialBranches, getInitialIncidents } from './seed-data';
@@ -61,18 +62,18 @@ async function seedDatabase() {
 // Automatically try to seed when this module is loaded.
 // This is for demo purposes.
 if (typeof window !== 'undefined') {
-  seedDatabase();
+  // seedDatabase().catch(console.error);
 }
 
 
-export async function getBranches(firestore: any): Promise<Branch[]> {
+export async function getBranches(firestore: Firestore): Promise<Branch[]> {
     const branchesCol = collection(firestore, 'branches');
     const branchSnapshot = await getDocs(branchesCol);
     const branchList = branchSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Branch));
     return branchList;
 }
 
-export async function getBranchesByIds(firestore: any, ids: string[]): Promise<Branch[]> {
+export async function getBranchesByIds(firestore: Firestore, ids: string[]): Promise<Branch[]> {
   if (ids.length === 0) return [];
   const branchesCol = collection(firestore, 'branches');
   // Firestore 'in' query is limited to 30 elements.
@@ -93,7 +94,7 @@ export async function getBranchesByIds(firestore: any, ids: string[]): Promise<B
   return branchList;
 }
 
-export async function getBranchById(firestore: any, id: string): Promise<Branch | undefined> {
+export async function getBranchById(firestore: Firestore, id: string): Promise<Branch | undefined> {
     const branchRef = doc(firestore, 'branches', id);
     const branchSnap = await getDoc(branchRef);
     if (branchSnap.exists()) {
@@ -102,13 +103,13 @@ export async function getBranchById(firestore: any, id: string): Promise<Branch 
     return undefined;
 }
 
-export async function getIncidents(firestore: any): Promise<Incident[]> {
+export async function getIncidents(firestore: Firestore): Promise<Incident[]> {
     const incidentsCol = collection(firestore, 'incidents');
     const incidentSnapshot = await getDocs(incidentsCol);
     return incidentSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
 }
 
-export async function getIncidentById(firestore: any, id: string): Promise<Incident | undefined> {
+export async function getIncidentById(firestore: Firestore, id: string): Promise<Incident | undefined> {
     const incidentRef = doc(firestore, 'incidents', id);
     const incidentSnap = await getDoc(incidentRef);
     if (incidentSnap.exists()) {
@@ -117,7 +118,7 @@ export async function getIncidentById(firestore: any, id: string): Promise<Incid
     return undefined;
 }
 
-export async function getIncidentsByBranch(firestore: any, branchId: string): Promise<Incident[]> {
+export async function getIncidentsByBranch(firestore: Firestore, branchId: string): Promise<Incident[]> {
     const incidentsCol = collection(firestore, 'incidents');
     const q = query(incidentsCol, where("branchId", "==", branchId));
     const incidentSnapshot = await getDocs(q);
