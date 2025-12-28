@@ -1,0 +1,260 @@
+{
+  "entities": {
+    "Branch": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Branch",
+      "type": "object",
+      "description": "Represents a branch in the store chain.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the branch."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the branch."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL of the image representing the branch.",
+          "format": "uri"
+        },
+        "address": {
+          "type": "string",
+          "description": "Address of the branch."
+        },
+        "brand": {
+          "type": "string",
+          "description": "Brand the branch belongs to."
+        },
+        "region": {
+          "type": "string",
+          "description": "Region the branch is located in."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "imageUrl",
+        "address",
+        "brand",
+        "region"
+      ]
+    },
+    "Incident": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Incident",
+      "type": "object",
+      "description": "Represents an incident reported at a branch.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the incident."
+        },
+        "branchId": {
+          "type": "string",
+          "description": "Reference to the Branch where the incident occurred. (Relationship: Branch 1:N Incident)"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the incident."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the incident."
+        },
+        "priorityId": {
+          "type": "string",
+          "description": "Reference to the Priority assigned to the incident. (Relationship: Priority 1:N Incident)"
+        },
+        "categoryId": {
+          "type": "string",
+          "description": "Reference to the Category of the incident. (Relationship: Category 1:N Incident)"
+        },
+        "statusId": {
+          "type": "string",
+          "description": "Reference to the Status of the incident. (Relationship: Status 1:N Incident)"
+        },
+        "reportDate": {
+          "type": "string",
+          "description": "Date and time when the incident was reported.",
+          "format": "date-time"
+        },
+        "photoUrl": {
+          "type": "string",
+          "description": "URL of the photo associated with the incident.",
+          "format": "uri"
+        },
+        "audioTranscription": {
+          "type": "string",
+          "description": "Text transcription of the audio recording associated with the incident."
+        }
+      },
+      "required": [
+        "id",
+        "branchId",
+        "title",
+        "description",
+        "priorityId",
+        "categoryId",
+        "statusId",
+        "reportDate"
+      ]
+    },
+    "Category": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Category",
+      "type": "object",
+      "description": "Represents a category for incidents.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the category."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the category."
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    },
+    "Priority": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Priority",
+      "type": "object",
+      "description": "Represents a priority level for incidents.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the priority."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the priority level."
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    },
+    "Status": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Status",
+      "type": "object",
+      "description": "Represents the status of an incident.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the status."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the status."
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/branches/{branchId}",
+        "definition": {
+          "entityName": "Branch",
+          "schema": {
+            "$ref": "#/backend/entities/Branch"
+          },
+          "description": "Stores branch information.",
+          "params": [
+            {
+              "name": "branchId",
+              "description": "Unique identifier for the branch."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/branches/{branchId}/incidents/{incidentId}",
+        "definition": {
+          "entityName": "Incident",
+          "schema": {
+            "$ref": "#/backend/entities/Incident"
+          },
+          "description": "Stores incidents reported at a specific branch.",
+          "params": [
+            {
+              "name": "branchId",
+              "description": "Unique identifier for the branch."
+            },
+            {
+              "name": "incidentId",
+              "description": "Unique identifier for the incident."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/categories/{categoryId}",
+        "definition": {
+          "entityName": "Category",
+          "schema": {
+            "$ref": "#/backend/entities/Category"
+          },
+          "description": "Stores incident categories.",
+          "params": [
+            {
+              "name": "categoryId",
+              "description": "Unique identifier for the category."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/priorities/{priorityId}",
+        "definition": {
+          "entityName": "Priority",
+          "schema": {
+            "$ref": "#/backend/entities/Priority"
+          },
+          "description": "Stores incident priorities.",
+          "params": [
+            {
+              "name": "priorityId",
+              "description": "Unique identifier for the priority."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/statuses/{statusId}",
+        "definition": {
+          "entityName": "Status",
+          "schema": {
+            "$ref": "#/backend/entities/Status"
+          },
+          "description": "Stores incident statuses.",
+          "params": [
+            {
+              "name": "statusId",
+              "description": "Unique identifier for the status."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to support the StoreView application's requirements, focusing on branch and incident management. It prioritizes authorization independence by avoiding hierarchical `get()` calls in security rules.  The structure leverages path-based ownership for private data and ensures all documents within a collection share the same security posture.  \n\nBranches are stored in a top-level `/branches` collection.  Incidents related to each branch are stored in a subcollection `/branches/{branchId}/incidents`. This nested structure explicitly represents the `Branch 1:N Incident` relationship.\n\nCategories, Priorities, and Statuses are stored in top-level collections (`/categories`, `/priorities`, `/statuses`) to allow global access and management.\n\nAuthorization Independence:\nSince there's no explicit user ownership or role-based access control mentioned, the structure assumes that any authenticated user can manage data. If the application requires role-based access, this structure can be easily extended by adding membership maps or ownership fields and denormalizing them where needed.\n\nQAPs (Rules are not Filters):\nThis structure enables secure `list` operations because each collection (e.g., `/branches`, `/categories`) contains documents with homogeneous security requirements. Path-based ownership for incidents ensures secure listing of incidents scoped to a branch. If global listing of incidents becomes a requirement with access control, a separate top-level collection for incidents with denormalized branch information (including authorization context) would be necessary.\n\nDebuggability:\nThe structure utilizes consistent naming conventions, explicit state modeling (if status is added), and predictable schema to enhance debuggability. Explicit path-based ownership makes security rules easier to understand and maintain."
+  }
+}

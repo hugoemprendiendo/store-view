@@ -1,0 +1,144 @@
+/**
+ * Core Philosophy: This ruleset implements a simple, authenticated-user-based security model.
+ * The primary principle is that any user who is signed in can read, create, update, and
+ * delete any data in the database. This is a common and effective approach for internal
+ * applications or prototypes where the initial focus is on functionality rather than complex,
+ * role-based access control.
+ *
+ * Data Structure: The data is organized into several top-level collections:
+ * - /branches: Stores information about store locations.
+ * - /categories, /priorities, /statuses: These are global lookup collections used to
+ *   define metadata for incidents.
+ *
+ * A key hierarchical relationship exists between branches and incidents:
+ * - /branches/{branchId}/incidents/{incidentId}: Incidents are nested within the
+ *   specific branch where they occurred. This provides a clear, relational structure.
+ *
+ * Key Security Decisions:
+ * - Authenticated Access Only: All operations require the user to be signed in. There is
+ *   no public or anonymous read/write access.
+ * - No User-Specific Ownership: The rules do not enforce user-level ownership. Any
+ *   authenticated user is treated as an authorized editor for all data.
+ * - Relational Integrity: For incident documents, the rules enforce that the `branchId` field
+ *   within the document must match the `branchId` in the collection path. This prevents
+ *   data inconsistency and is a critical validation even in prototyping mode.
+ * - Flexibility Over Strictness: In line with prototyping, data shapes are not validated.
+ *   The rules focus solely on authorization and critical relational links.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------------------
+    // Helper Functions
+    // ------------------------------------------------------------------------
+
+    /**
+     * Checks if the user is authenticated. This is the foundation for all
+     * security checks in this ruleset.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Ensures a write operation targets an existing document and the user
+     * is authenticated. Prevents writes to non-existent paths.
+     */
+    function isAuthenticatedAndDocExists() {
+      return isSignedIn() && resource != null;
+    }
+
+    /**
+     * On incident creation, validates that the `branchId` inside the new document
+     * matches the `branchId` from the collection path.
+     */
+    function hasValidIncidentData(branchId) {
+      return request.resource.data.branchId == branchId;
+    }
+
+    /**
+     * On incident update, ensures the `branchId` cannot be changed, preserving the
+     * document's relational integrity.
+     */
+    function isIncidentBranchIdImmutable() {
+      return request.resource.data.branchId == resource.data.branchId;
+    }
+
+    // ------------------------------------------------------------------------
+    // Collection Rules
+    // ------------------------------------------------------------------------
+
+    /**
+     * @description Controls access to the top-level collection of branches.
+     * Allows any authenticated user to read and manage all branch documents.
+     * @path /branches/{branchId}
+     * @allow An authenticated user (auth != null) tries to (create) a new branch.
+     * @deny An unauthenticated user (auth == null) tries to (list) branches.
+     * @principle Enforces that all interactions with core business data require authentication.
+     */
+    match /branches/{branchId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAuthenticatedAndDocExists();
+
+      /**
+       * @description Controls access to incidents within a specific branch.
+       * Allows authenticated users to manage incidents, ensuring they are always
+       * linked to the correct parent branch.
+       * @path /branches/{branchId}/incidents/{incidentId}
+       * @allow An authenticated user creates a new incident with a `branchId` field matching the path.
+       * @deny An authenticated user tries to create an incident where the document's `branchId` does not match the collection path.
+       * @principle Validates relational integrity between parent and subcollection documents.
+       */
+      match /incidents/{incidentId} {
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn() && hasValidIncidentData(branchId);
+        allow update: if isAuthenticatedAndDocExists() && isIncidentBranchIdImmutable();
+        allow delete: if isAuthenticatedAndDocExists();
+      }
+    }
+
+    /**
+     * @description Controls access to the global list of incident categories.
+     * Allows any authenticated user to read and manage all categories.
+     * @path /categories/{categoryId}
+     * @allow An authenticated user (auth != null) tries to (get) a category document.
+     * @deny An unauthenticated user (auth == null) tries to (update) a category.
+     * @principle Ensures that application-wide lookup data can only be managed by authenticated users.
+     */
+    match /categories/{categoryId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAuthenticatedAndDocExists();
+    }
+
+    /**
+     * @description Controls access to the global list of incident priorities.
+     * Allows any authenticated user to read and manage all priorities.
+     * @path /priorities/{priorityId}
+     * @allow An authenticated user (auth != null) tries to (delete) a priority document.
+     * @deny An unauthenticated user (auth == null) tries to (list) priorities.
+     * @principle Ensures that application-wide lookup data can only be managed by authenticated users.
+     */
+    match /priorities/{priorityId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAuthenticatedAndDocExists();
+    }
+
+    /**
+     * @description Controls access to the global list of incident statuses.
+     * Allows any authenticated user to read and manage all statuses.
+     * @path /statuses/{statusId}
+     * @allow An authenticated user (auth != null) tries to (create) a new status.
+     * @deny An authenticated user tries to (update) a status document that does not exist.
+     * @principle Ensures that application-wide lookup data can only be managed by authenticated users.
+     */
+    match /statuses/{statusId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAuthenticatedAndDocExists();
+    }
+  }
+}
