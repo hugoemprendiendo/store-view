@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import type { Branch } from '@/lib/types';
-import { getBranches } from '@/lib/data';
+import { getBranches, getBranchesByIds } from '@/lib/data';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -18,24 +18,38 @@ import { Button } from '@/components/ui/button';
 import { Eye, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useFirestore, useUser } from '@/firebase';
+import { useUserProfile } from '@/hooks/useUserProfile';
 
 export default function BranchesPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedRegion, setSelectedRegion] = useState('all');
 
   useEffect(() => {
     async function fetchData() {
-      if (!user || !firestore) return;
+      if (!firestore || !userProfile) return;
       setIsLoading(true);
-      const branchesData = await getBranches(firestore);
+      
+      let branchesData: Branch[];
+      if (userProfile.role === 'superadmin') {
+        branchesData = await getBranches(firestore);
+      } else if (userProfile.assignedBranches && userProfile.assignedBranches.length > 0) {
+        branchesData = await getBranchesByIds(firestore, userProfile.assignedBranches);
+      } else {
+        branchesData = [];
+      }
+      
       setBranches(branchesData);
       setIsLoading(false);
     }
-    fetchData();
-  }, [firestore, user]);
+
+    if (!isUserLoading && !isProfileLoading) {
+        fetchData();
+    }
+  }, [firestore, user, userProfile, isUserLoading, isProfileLoading]);
 
   const regions = useMemo(() => {
     return ['all', ...Array.from(new Set(branches.map((b) => b.region)))];
@@ -48,7 +62,9 @@ export default function BranchesPage() {
     return branches.filter((branch) => branch.region === selectedRegion);
   }, [branches, selectedRegion]);
 
-  if (isLoading || isUserLoading) {
+  const totalLoading = isLoading || isUserLoading || isProfileLoading;
+
+  if (totalLoading) {
       return (
           <div className="flex flex-col gap-6">
               <Header title="Sucursales" />
@@ -64,7 +80,7 @@ export default function BranchesPage() {
       <Header title="Sucursales" />
       <Card>
         <CardHeader>
-          <CardTitle>Todas las sucursales</CardTitle>
+          <CardTitle>Mis sucursales</CardTitle>
           <div className="pt-4">
             <Select value={selectedRegion} onValueChange={setSelectedRegion}>
               <SelectTrigger className="w-full md:w-[280px]">
@@ -93,7 +109,7 @@ export default function BranchesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredBranches.map((branch) => (
+                {filteredBranches.length > 0 ? filteredBranches.map((branch) => (
                   <TableRow key={branch.id}>
                     <TableCell className="font-medium">{branch.name}</TableCell>
                     <TableCell>{branch.brand}</TableCell>
@@ -108,7 +124,13 @@ export default function BranchesPage() {
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))}
+                )) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center">
+                      No tienes sucursales asignadas.
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           

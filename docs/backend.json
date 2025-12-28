@@ -129,9 +129,16 @@
         "createdAt": {
             "type": "string",
             "format": "date-time"
+        },
+        "assignedBranches": {
+            "type": "array",
+            "description": "A list of branch IDs assigned to the user.",
+            "items": {
+                "type": "string"
+            }
         }
       },
-      "required": ["name", "email", "createdAt"]
+      "required": ["name", "email", "createdAt", "role"]
     }
   },
   "auth": {

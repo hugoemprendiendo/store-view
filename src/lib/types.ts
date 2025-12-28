@@ -28,6 +28,7 @@ export type UserProfile = {
   email: string;
   role: 'user' | 'superadmin';
   createdAt: string;
+  assignedBranches?: string[];
 }
 
 export const IncidentCategories = [

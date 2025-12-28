@@ -8,35 +8,43 @@ service cloud.firestore {
     }
     
     function isCreatingOwnProfile(userId) {
-      // A user can only access a document where the ID matches their own user ID.
       return request.auth.uid == userId;
     }
     
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+
     function getRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return getUserData(request.auth.uid).role;
     }
 
     function isSuperAdmin() {
       return isSignedIn() && getRole() == 'superadmin';
     }
 
+    function isAssignedToBranch(branchId) {
+      return isSignedIn() && branchId in getUserData(request.auth.uid).assignedBranches;
+    }
+
     match /users/{userId} {
-      // Anyone can create their own profile. The signup logic handles assigning roles.
       allow create: if isCreatingOwnProfile(userId);
-      
-      // Superadmins can read all user profiles.
-      // Users can only read or update their own profile.
       allow read, update: if isSuperAdmin() || isCreatingOwnProfile(userId);
     }
 
     match /branches/{branchId} {
-      // Any signed-in user can read and write branch data.
-      allow read, write: if isSignedIn();
+      allow read: if isSuperAdmin() || isAssignedToBranch(branchId);
+      allow write: if isSuperAdmin(); // Only superadmins can create/edit branches
     }
 
     match /incidents/{incidentId} {
-      // Any signed-in user can read and write incident data.
-      allow read, write: if isSignedIn();
+      // To read or write an incident, you must have access to the branch it belongs to.
+      // The incident data is in `request.resource.data` for write, and `resource.data` for read.
+      function getBranchIdForIncident() {
+        return request.method == 'create' ? request.resource.data.branchId : resource.data.branchId;
+      }
+      
+      allow read, write: if isSuperAdmin() || isAssignedToBranch(getBranchIdForIncident());
     }
   }
 }

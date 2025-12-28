@@ -72,6 +72,27 @@ export async function getBranches(firestore: any): Promise<Branch[]> {
     return branchList;
 }
 
+export async function getBranchesByIds(firestore: any, ids: string[]): Promise<Branch[]> {
+  if (ids.length === 0) return [];
+  const branchesCol = collection(firestore, 'branches');
+  // Firestore 'in' query is limited to 30 elements.
+  // For this app, we'll chunk the requests if needed.
+  const chunks = [];
+  for (let i = 0; i < ids.length; i += 30) {
+      chunks.push(ids.slice(i, i + 30));
+  }
+
+  const branchPromises = chunks.map(chunk => {
+      const q = query(branchesCol, where('__name__', 'in', chunk));
+      return getDocs(q);
+  });
+  
+  const allSnapshots = await Promise.all(branchPromises);
+  const branchList = allSnapshots.flatMap(snapshot => snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Branch)));
+
+  return branchList;
+}
+
 export async function getBranchById(firestore: any, id: string): Promise<Branch | undefined> {
     const branchRef = doc(firestore, 'branches', id);
     const branchSnap = await getDoc(branchRef);
