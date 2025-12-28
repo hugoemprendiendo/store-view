@@ -48,17 +48,17 @@ const analyzeIncidentReportPrompt = ai.definePrompt({
 
   Consider the following information when making your suggestions:
 
-  {% if photoDataUri %}
+  {{#if photoDataUri}}
   Photo: {{media url=photoDataUri}}
-  {% endif %}
+  {{/if}}
 
-  {% if audioTranscription %}
+  {{#if audioTranscription}}
   Audio Transcription: {{{audioTranscription}}}
-  {% endif %}
+  {{/if}}
 
-  {% if textDescription %}
+  {{#if textDescription}}
   Text Description: {{{textDescription}}}
-  {% endif %}`,
+  {{/if}}`,
 });
 
 const analyzeIncidentReportFlow = ai.defineFlow(
