@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { collection, getDocs } from 'firebase/firestore';
-import type { UserProfile } from '@/lib/types';
+import type { UserProfile, Branch } from '@/lib/types';
 import { Header } from '@/components/layout/header';
 import {
   Card,
@@ -21,43 +21,60 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ShieldAlert } from 'lucide-react';
+import { Loader2, ShieldAlert, Pencil } from 'lucide-react';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useRouter } from 'next/navigation';
+import { getBranches } from '@/lib/data';
+import { ManageUserBranchesDialog } from '@/components/admin/manage-user-branches-dialog';
+import { Button } from '@/components/ui/button';
 
 export default function UsersPage() {
   const firestore = useFirestore();
-  const { user: authUser, isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
   const router = useRouter();
 
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!isUserLoading && !isProfileLoading) {
+    if (!isProfileLoading) {
       if (!userProfile || userProfile.role !== 'superadmin') {
         router.push('/');
         return;
       }
 
-      async function fetchUsers() {
+      async function fetchData() {
         if (!firestore) return;
         setIsLoading(true);
-        const usersCollection = collection(firestore, 'users');
-        const usersSnapshot = await getDocs(usersCollection);
-        const usersList = usersSnapshot.docs.map(
-          (doc) => ({ id: doc.id, ...doc.data() } as UserProfile)
-        );
-        setUsers(usersList);
-        setIsLoading(false);
+        try {
+          const [usersSnapshot, branchesData] = await Promise.all([
+            getDocs(collection(firestore, 'users')),
+            getBranches(firestore),
+          ]);
+
+          const usersList = usersSnapshot.docs.map(
+            (doc) => ({ id: doc.id, ...doc.data() } as UserProfile)
+          );
+
+          setUsers(usersList);
+          setBranches(branchesData);
+        } catch (error) {
+          console.error("Error fetching users or branches: ", error);
+        } finally {
+          setIsLoading(false);
+        }
       }
 
-      fetchUsers();
+      fetchData();
     }
-  }, [firestore, isUserLoading, isProfileLoading, userProfile, router]);
+  }, [firestore, isProfileLoading, userProfile, router]);
   
-  const totalLoading = isLoading || isUserLoading || isProfileLoading;
+  const totalLoading = isLoading || isProfileLoading;
+
+  const handleUserUpdate = (updatedUser: UserProfile) => {
+    setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+  };
 
   if (totalLoading) {
     return (
@@ -102,7 +119,8 @@ export default function UsersPage() {
                 <TableHead>Nombre</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Rol</TableHead>
-                <TableHead>Fecha de Creación</TableHead>
+                <TableHead>Sucursales Asignadas</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -119,7 +137,23 @@ export default function UsersPage() {
                       {user.role}
                     </Badge>
                   </TableCell>
-                   <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    {user.role === 'superadmin' ? (
+                        <Badge variant="outline">Todas</Badge>
+                    ) : (
+                        <Badge variant="secondary">{user.assignedBranches?.length || 0}</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {user.role !== 'superadmin' && (
+                        <ManageUserBranchesDialog user={user} allBranches={branches} onUserUpdate={handleUserUpdate}>
+                            <Button variant="outline" size="sm">
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Gestionar Sucursales
+                            </Button>
+                        </ManageUserBranchesDialog>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
