@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * @fileOverview Analyzes incident reports using GenAI to suggest a title, category, priority, and status.
+ * @fileOverview Analyzes incident reports using GenAI to suggest a title, category, priority, status, and description.
  *
  * - analyzeIncidentReport - A function that analyzes the incident report and suggests improvements.
  * - AnalyzeIncidentReportInput - The input type for the analyzeIncidentReport function.
@@ -28,6 +28,7 @@ const AnalyzeIncidentReportOutputSchema = z.object({
   suggestedCategory: z.string().describe('A suggested category for the incident report.'),
   suggestedPriority: z.string().describe('A suggested priority for the incident report (e.g., High, Medium, Low).'),
   suggestedStatus: z.string().describe('A suggested status for the incident report (e.g., Open, In Progress, Resolved).'),
+  suggestedDescription: z.string().describe('A detailed, structured description of the incident based on the available evidence (photo, audio, text).'),
 });
 export type AnalyzeIncidentReportOutput = z.infer<typeof AnalyzeIncidentReportOutputSchema>;
 
@@ -43,7 +44,8 @@ const analyzeIncidentReportPrompt = ai.definePrompt({
   output: {schema: AnalyzeIncidentReportOutputSchema},
   prompt: `You are an AI assistant that analyzes incident reports and suggests improvements.
 
-  Based on the provided information, suggest a title, category, priority, and status for the incident report.
+  Based on the provided information, suggest a title, category, priority, status, and a detailed, structured description for the incident report.
+  The description should summarize all the evidence provided.
   Respond in a JSON format.
 
   Consider the following information when making your suggestions:
@@ -57,7 +59,7 @@ const analyzeIncidentReportPrompt = ai.definePrompt({
   {{/if}}
 
   {{#if textDescription}}
-  Text Description: {{{textDescription}}}
+  User's Text Description: {{{textDescription}}}
   {{/if}}`,
 });
 

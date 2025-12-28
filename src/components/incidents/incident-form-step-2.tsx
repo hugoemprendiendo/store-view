@@ -80,9 +80,9 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
                         suggestedCategory: '',
                         suggestedPriority: 'Medium',
                         suggestedStatus: 'Open',
+                        suggestedDescription: incidentData.textDescription || '',
                         photoUrl: incidentData.photoDataUri,
                         audioTranscription: incidentData.audioTranscription,
-                        description: incidentData.textDescription,
                     }} />
                 </CardContent>
                 <CardFooter className="flex justify-start">
@@ -122,8 +122,15 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
                         <div className="md:col-span-2">
                              <h4 className="font-medium mb-2 text-sm">Provided Description</h4>
                             <div className="prose prose-sm dark:prose-invert max-w-none border rounded-md p-4 bg-muted max-h-48 overflow-y-auto">
-                                {incidentData.audioTranscription && <blockquote>{incidentData.audioTranscription}</blockquote>}
+                                {incidentData.audioTranscription && !incidentData.textDescription && <blockquote>{incidentData.audioTranscription}</blockquote>}
                                 {incidentData.textDescription && <p>{incidentData.textDescription}</p>}
+                                {incidentData.audioTranscription && incidentData.textDescription && (
+                                    <>
+                                        <p>{incidentData.textDescription}</p>
+                                        <hr />
+                                        <blockquote>{incidentData.audioTranscription}</blockquote>
+                                    </>
+                                )}
                             </div>
                         </div>
                     )}
@@ -132,7 +139,6 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
                     ...analysisResult,
                     photoUrl: incidentData.photoDataUri,
                     audioTranscription: incidentData.audioTranscription,
-                    description: incidentData.textDescription,
                 }} />
             </CardContent>
             <CardFooter className="flex justify-start">

@@ -37,7 +37,6 @@ interface IncidentReviewFormProps {
     photoUrl?: string;
     photoHint?: string;
     audioTranscription?: string;
-    description?: string;
   };
 }
 
@@ -56,7 +55,7 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
       category: IncidentCategories.includes(initialData.suggestedCategory) ? initialData.suggestedCategory : '',
       priority: IncidentPriorities.includes(initialData.suggestedPriority as any) ? initialData.suggestedPriority as any : 'Medium',
       status: 'Open',
-      description: initialData.description || '',
+      description: initialData.suggestedDescription || '',
       audioTranscription: initialData.audioTranscription || '',
       photoUrl: initialData.photoUrl,
       photoHint: initialData.photoHint,
@@ -173,7 +172,7 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a priority" />
-                      </SelectTrigger>
+                      </Trigger>
                     </FormControl>
                     <SelectContent>
                       {IncidentPriorities.map((p) => (
