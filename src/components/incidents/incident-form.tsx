@@ -23,8 +23,7 @@ const incidentSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters.'),
   description: z.string().optional(),
   audioTranscription: z.string().optional(),
-  photoUrl: z.string().optional(),
-  photoHint: z.string().optional(),
+  photo: z.string().optional(),
   category: z.string().min(1, 'Category is required.'),
   priority: z.enum(IncidentPriorities),
   status: z.string().default('Open'),
@@ -35,7 +34,6 @@ type IncidentFormValues = z.infer<typeof incidentSchema>;
 interface IncidentReviewFormProps {
   initialData: AnalyzeIncidentReportOutput & {
     photoUrl?: string;
-    photoHint?: string;
     audioTranscription?: string;
   };
 }
@@ -57,8 +55,7 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
       status: 'Open',
       description: initialData.suggestedDescription || '',
       audioTranscription: initialData.audioTranscription || '',
-      photoUrl: initialData.photoUrl,
-      photoHint: initialData.photoHint,
+      photo: initialData.photoUrl,
     },
   });
 
@@ -172,7 +169,7 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a priority" />
-                      </Trigger>
+                      </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       {IncidentPriorities.map((p) => (
