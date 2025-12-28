@@ -54,7 +54,7 @@ export async function updateIncidentStatus(id: string, status: Incident['status'
     try {
         const updatedIncident = await dbUpdateIncidentStatus(id, status);
         if (!updatedIncident) {
-            return { success: false, error: 'Incident not found.' };
+            return { success: false, error: 'Incidencia no encontrada.' };
         }
         revalidatePath('/');
         revalidatePath(`/branches/${updatedIncident.branchId}`);
@@ -62,6 +62,6 @@ export async function updateIncidentStatus(id: string, status: Incident['status'
         return { success: true, data: updatedIncident };
     } catch (error) {
         console.error(error);
-        return { success: false, error: 'Failed to update incident status.' };
+        return { success: false, error: 'Error al actualizar el estado de la incidencia.' };
     }
 }

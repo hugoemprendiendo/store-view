@@ -18,21 +18,21 @@ export type Incident = {
   audioTranscription?: string;
   category: string;
   priority: 'Low' | 'Medium' | 'High';
-  status: 'Open' | 'In Progress' | 'Resolved';
+  status: 'Abierto' | 'En Progreso' | 'Resuelto';
   createdAt: string;
 };
 
 export const IncidentCategories = [
-  'Kitchen Equipment',
-  'Point of Sale (POS)',
-  'Customer Area',
+  'Equipo de Cocina',
+  'Punto de Venta (POS)',
+  'Área de Cliente',
   'Drive-Thru',
-  'Food Safety',
-  'Employee',
-  'Facilities',
-  'Other',
+  'Seguridad Alimentaria',
+  'Empleado',
+  'Instalaciones',
+  'Otro',
 ];
 export const IncidentPriorities = ['Low', 'Medium', 'High'] as const;
-export const IncidentStatuses = ['Open', 'In Progress', 'Resolved'];
+export const IncidentStatuses = ['Abierto', 'En Progreso', 'Resuelto'];
 
 export type IncidentStatus = 'ok' | 'warning' | 'error';

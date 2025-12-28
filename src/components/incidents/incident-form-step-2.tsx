@@ -79,7 +79,7 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
                         suggestedTitle: '',
                         suggestedCategory: '',
                         suggestedPriority: 'Medium',
-                        suggestedStatus: 'Open',
+                        suggestedStatus: 'Abierto',
                         suggestedDescription: incidentData.textDescription || '',
                         photoUrl: incidentData.photoDataUri,
                         audioTranscription: incidentData.audioTranscription,

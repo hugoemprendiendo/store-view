@@ -11,6 +11,12 @@ import { Input } from '@/components/ui/input';
 import { X, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+const priorityTextMap = {
+    Low: 'Baja',
+    Medium: 'Media',
+    High: 'Alta',
+} as const;
+
 export default function SettingsPage() {
   const [categories, setCategories] = useState(defaultCategories);
   const [newCategory, setNewCategory] = useState('');
@@ -95,7 +101,7 @@ export default function SettingsPage() {
               {IncidentPriorities.map(priority => (
                 <Badge key={priority} variant={
                   priority === 'High' ? 'destructive' : priority === 'Medium' ? 'default' : 'secondary'
-                } className="text-base">{priority}</Badge>
+                } className="text-base">{priorityTextMap[priority]}</Badge>
               ))}
             </CardContent>
           </Card>

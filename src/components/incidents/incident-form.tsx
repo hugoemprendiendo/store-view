@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { IncidentCategories, IncidentPriorities } from '@/lib/types';
+import { IncidentCategories, IncidentPriorities, IncidentStatuses } from '@/lib/types';
 import { Loader2, Send } from 'lucide-react';
 import React from 'react';
 import type { AnalyzeIncidentReportOutput } from '@/ai/flows/analyze-incident-report';
@@ -26,7 +26,7 @@ const incidentSchema = z.object({
   photo: z.string().optional(),
   category: z.string().min(1, 'La categoría es obligatoria.'),
   priority: z.enum(IncidentPriorities),
-  status: z.string().default('Open'),
+  status: z.enum(IncidentStatuses).default('Abierto'),
 });
 
 type IncidentFormValues = z.infer<typeof incidentSchema>;
@@ -52,7 +52,7 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
       title: initialData.suggestedTitle || '',
       category: IncidentCategories.includes(initialData.suggestedCategory) ? initialData.suggestedCategory : '',
       priority: IncidentPriorities.includes(initialData.suggestedPriority as any) ? initialData.suggestedPriority as any : 'Medium',
-      status: 'Open',
+      status: 'Abierto',
       description: initialData.suggestedDescription || '',
       audioTranscription: initialData.audioTranscription || '',
       photo: initialData.photoUrl,
@@ -173,7 +173,7 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
                     </FormControl>
                     <SelectContent>
                       {IncidentPriorities.map((p) => (
-                        <SelectItem key={p} value={p}>{p}</SelectItem>
+                        <SelectItem key={p} value={p}>{p === 'High' ? 'Alta' : p === 'Medium' ? 'Media' : 'Baja'}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

@@ -26,6 +26,12 @@ const priorityVariantMap = {
   High: 'destructive',
 } as const;
 
+const priorityTextMap = {
+    Low: 'Baja',
+    Medium: 'Media',
+    High: 'Alta',
+} as const;
+
 export default function IncidentDetails({ incident: initialIncident, branch }: IncidentDetailsProps) {
     const [incident, setIncident] = useState(initialIncident);
     const [selectedStatus, setSelectedStatus] = useState(incident.status);
@@ -102,7 +108,7 @@ export default function IncidentDetails({ incident: initialIncident, branch }: I
                     <CardContent className="space-y-4">
                          <div className="flex items-center gap-3">
                             <Shield className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                            <Badge variant={priorityVariantMap[incident.priority]} className="text-sm">Prioridad {incident.priority}</Badge>
+                            <Badge variant={priorityVariantMap[incident.priority]} className="text-sm">Prioridad {priorityTextMap[incident.priority]}</Badge>
                         </div>
                         <div className="flex items-center gap-3">
                             <Layers className="h-5 w-5 text-muted-foreground flex-shrink-0" />
@@ -128,9 +134,9 @@ export default function IncidentDetails({ incident: initialIncident, branch }: I
                                 <SelectValue placeholder="Cambiar estado" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="Open">Abierto</SelectItem>
-                                <SelectItem value="In Progress">En Progreso</SelectItem>
-                                <SelectItem value="Resolved">Resuelto</SelectItem>
+                                <SelectItem value="Abierto">Abierto</SelectItem>
+                                <SelectItem value="En Progreso">En Progreso</SelectItem>
+                                <SelectItem value="Resuelto">Resuelto</SelectItem>
                             </SelectContent>
                         </Select>
                         <Button onClick={handleStatusUpdate} disabled={isUpdating || selectedStatus === incident.status} className="w-full">
