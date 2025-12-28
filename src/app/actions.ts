@@ -2,12 +2,11 @@
 
 import { analyzeIncidentReport, AnalyzeIncidentReportInput } from '@/ai/flows/analyze-incident-report';
 import { transcribeAudio as aiTranscribeAudio, TranscribeAudioInput } from '@/ai/flows/transcribe-audio';
-import { collection, addDoc, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, getDoc, Firestore } from 'firebase/firestore';
 import type { Incident } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { getFirestore } from 'firebase/firestore';
-import { getSdks } from '@/firebase';
-import { initializeApp } from 'firebase/app';
+import { getApps, initializeApp } from 'firebase/app';
 import { firebaseConfig } from '@/firebase/config';
 
 // This is a temporary workaround to get a client-side firestore instance on the server
