@@ -27,7 +27,7 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { Loader2, UserPlus, Store } from 'lucide-react';
-import { doc, setDoc, getDocs, collection, query, limit } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 
 const signupSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres.'),
@@ -61,13 +61,10 @@ export default function SignupPage() {
     }
     setIsSubmitting(true);
     try {
-      // Check if any user exists to determine the role
-      const usersCollection = collection(firestore, 'users');
-      // We only need to know if there's at least one, so we limit the query.
-      const usersQuery = query(usersCollection, limit(1));
-      const usersSnapshot = await getDocs(usersQuery);
-      const isFirstUser = usersSnapshot.empty;
-      const role = isFirstUser ? 'superadmin' : 'user';
+      // NOTE: The logic to check for the first user and assign 'superadmin' role
+      // was moved to be a manual step after the first signup to resolve permission issues.
+      // All new users are created with the 'user' role.
+      const role = 'user';
 
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
@@ -78,12 +75,12 @@ export default function SignupPage() {
         name: values.name,
         email: values.email,
         createdAt: new Date().toISOString(),
-        role: role, // Add the role to the document
+        role: role,
       });
 
       toast({
         title: 'Registro Exitoso',
-        description: `Tu cuenta ha sido creada con el rol de ${role}.`,
+        description: `Tu cuenta ha sido creada. Ahora puedes iniciar sesión.`,
       });
       // The AuthProvider will handle redirection
     } catch (error: any) {
@@ -91,7 +88,7 @@ export default function SignupPage() {
       let description = 'Ocurrió un error inesperado.';
       if (error.code === 'auth/email-already-in-use') {
           description = 'Este correo electrónico ya está en uso.';
-      } else if (error.code === 'permission-denied' || error.name === 'FirebaseError' && error.message.includes('permission-denied')) {
+      } else if (error.code === 'permission-denied') {
           description = 'No tienes permiso para crear una cuenta. Contacta al administrador.';
       }
       toast({
