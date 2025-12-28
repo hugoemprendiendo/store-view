@@ -7,8 +7,8 @@ export default async function DashboardPage() {
   const incidents = await getIncidents();
 
   return (
-    <div className="flex flex-col gap-4">
-      <Header title="Dashboard" />
+    <div className="flex flex-col gap-6">
+      <Header title="Panel de Control" />
       <DashboardClient branches={branches} incidents={incidents} />
     </div>
   );
