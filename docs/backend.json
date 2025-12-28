@@ -105,12 +105,46 @@
         "status",
         "createdAt"
       ]
+    },
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User Profile",
+      "description": "Represents a user's profile in the system.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The user's full name."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's email address."
+        },
+        "role": {
+          "type": "string",
+          "description": "The user's role.",
+          "enum": ["user", "superadmin"]
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time"
+        }
+      },
+      "required": ["name", "email", "createdAt"]
     }
   },
   "auth": {
     "providers": [
-      "anonymous"
-    ]
+      "anonymous",
+      "emailpassword"
+    ],
+    "customClaims": {
+        "role": {
+            "type": "string",
+            "enum": ["user", "superadmin"]
+        }
+    }
   },
   "firestore": {
     "/branches/{branchId}": {
@@ -124,6 +158,12 @@
         "$ref": "#/entities/Incident"
       },
       "description": "Stores all incidents across all branches."
+    },
+    "/users/{userId}": {
+        "schema": {
+            "$ref": "#/entities/UserProfile"
+        },
+        "description": "Stores user profile information."
     }
   }
 }

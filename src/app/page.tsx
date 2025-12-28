@@ -1,18 +1,13 @@
 'use client';
 import { Header } from '@/components/layout/header';
-import { getBranches, getIncidents } from '@/lib/data';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
-import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { useEffect, useState } from 'react';
+import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import type { Branch, Incident } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
-import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
-import { useAuth } from '@/firebase';
 import { collection } from 'firebase/firestore';
 
 export default function DashboardPage() {
   const firestore = useFirestore();
-  const auth = useAuth();
   const { user, isUserLoading } = useUser();
   
   // Create memoized collection references
@@ -23,15 +18,9 @@ export default function DashboardPage() {
   const { data: branches, isLoading: isLoadingBranches } = useCollection<Branch>(branchesQuery);
   const { data: incidents, isLoading: isLoadingIncidents } = useCollection<Incident>(incidentsQuery);
 
-  useEffect(() => {
-    if (!isUserLoading && !user) {
-      initiateAnonymousSignIn(auth);
-    }
-  }, [isUserLoading, user, auth]);
-
   const isLoading = isUserLoading || isLoadingBranches || isLoadingIncidents;
 
-  if (isLoading || (isLoading && user)) {
+  if (isLoading || !user) {
     return (
       <div className="flex flex-col gap-6">
         <Header title="Panel de Control" />

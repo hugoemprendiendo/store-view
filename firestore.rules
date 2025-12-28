@@ -1,4 +1,5 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
     
@@ -6,14 +7,32 @@ service cloud.firestore {
     function isSignedIn() {
       return request.auth != null;
     }
+    
+    // Check if the user trying to write is the first user in the database.
+    function isFirstUser() {
+      // `existsAfter` checks the state *after* the write would be committed.
+      // We check that no other user documents exist besides the one being created.
+      return existsAfter(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             getAfter(/databases/$(database)/documents/users).size() == 1;
+    }
+
+    // /users/{userId}
+    match /users/{userId} {
+      // Anyone can create their own user profile.
+      allow create: if request.auth.uid == userId;
+      // Only the user themselves can read or update their own profile.
+      allow read, update: if request.auth.uid == userId;
+    }
 
     // /branches/{branchId}
     match /branches/{branchId} {
+      // Any signed-in user can read and write branch data.
       allow read, write: if isSignedIn();
     }
 
     // /incidents/{incidentId}
     match /incidents/{incidentId} {
+      // Any signed-in user can read and write incident data.
       allow read, write: if isSignedIn();
     }
   }
