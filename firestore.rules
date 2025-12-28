@@ -8,17 +8,25 @@ service cloud.firestore {
     }
     
     function isCreatingOwnProfile(userId) {
-      // A user can only create a document where the ID matches their own user ID.
+      // A user can only access a document where the ID matches their own user ID.
       return request.auth.uid == userId;
+    }
+    
+    function getRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && getRole() == 'superadmin';
     }
 
     match /users/{userId} {
-      // Anyone can create a user profile for themselves.
-      // The logic to assign roles is handled in the application client-side code.
+      // Anyone can create their own profile. The signup logic handles assigning roles.
       allow create: if isCreatingOwnProfile(userId);
       
-      // Only the user themselves can read or update their own profile.
-      allow read, update: if isCreatingOwnProfile(userId);
+      // Superadmins can read all user profiles.
+      // Users can only read or update their own profile.
+      allow read, update: if isSuperAdmin() || isCreatingOwnProfile(userId);
     }
 
     match /branches/{branchId} {
