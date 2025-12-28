@@ -14,29 +14,26 @@ export default function DashboardPage() {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
   const [userBranches, setUserBranches] = useState<Branch[] | null>(null);
 
-  const branchesQuery = useMemoFirebase(() => {
-    if (!firestore || !userProfile) return null;
-    
-    // Superadmin gets all branches
-    if (userProfile.role === 'superadmin') {
-      return collection(firestore, 'branches');
-    }
-    
-    // For regular users, we will fetch by IDs, so this query will be null.
-    return null;
+  // For superadmin, fetch all branches
+  const adminBranchesQuery = useMemoFirebase(() => {
+    if (!firestore || !userProfile || userProfile.role !== 'superadmin') return null;
+    return collection(firestore, 'branches');
   }, [firestore, userProfile]);
 
-  const { data: adminBranches, isLoading: isLoadingAdminBranches } = useCollection<Branch>(branchesQuery);
-
+  const { data: adminBranches, isLoading: isLoadingAdminBranches } = useCollection<Branch>(adminBranchesQuery);
+  
+  // For regular users, fetch branches based on their assigned list
   useEffect(() => {
+    if (!firestore || isProfileLoading || !userProfile) return;
+
+    if (userProfile.role === 'superadmin') {
+      setUserBranches(adminBranches);
+      return;
+    }
+    
     async function fetchUserBranches() {
-      if (!firestore || !userProfile || userProfile.role === 'superadmin') {
-        return;
-      }
-      
       if (userProfile.assignedBranches && userProfile.assignedBranches.length > 0) {
         const branchesRef = collection(firestore, 'branches');
-        // Firestore 'in' query is limited to 30 documents. Chunk if necessary.
         const chunks: string[][] = [];
         for (let i = 0; i < userProfile.assignedBranches.length; i += 30) {
           chunks.push(userProfile.assignedBranches.slice(i, i + 30));
@@ -60,38 +57,38 @@ export default function DashboardPage() {
       }
     }
 
-    if (!isProfileLoading) {
-      fetchUserBranches();
-    }
-  }, [firestore, userProfile, isProfileLoading]);
+    fetchUserBranches();
+  }, [firestore, userProfile, isProfileLoading, adminBranches]);
 
-  const branches = userProfile?.role === 'superadmin' ? adminBranches : userBranches;
-  const isLoadingBranches = userProfile?.role === 'superadmin' ? isLoadingAdminBranches : userBranches === null;
+  const branches = userBranches;
+  const isLoadingBranches = userBranches === null;
 
+  // Fetch incidents based on user role and loaded branches
   const incidentsQuery = useMemoFirebase(() => {
-    if (!firestore || !branches || branches.length === 0) {
-      // If a user has no assigned branches, or we are still loading, return a query that finds nothing.
-       return query(collection(firestore, 'incidents'), where('branchId', 'in', ['non-existent-id']));
+    if (!firestore || !userProfile || isLoadingBranches) return null;
+
+    // Superadmin gets all incidents
+    if (userProfile.role === 'superadmin') {
+      return collection(firestore, 'incidents');
     }
 
-    const branchIds = branches.map(b => b.id);
-    // Firestore 'in' query is limited to 30 elements.
-    if (branchIds.length > 0 && branchIds.length <= 30) {
-        return query(collection(firestore, 'incidents'), where('branchId', 'in', branchIds));
+    // Regular user: only query if they have assigned branches
+    const branchIds = branches?.map(b => b.id) || [];
+    if (branchIds.length > 0) {
+       // Firestore 'in' query is limited to 30 elements, chunk if necessary.
+       // For this app, we assume a user won't be assigned to more than 30.
+       // If they are, we'd need to run multiple queries and combine results client-side.
+      return query(collection(firestore, 'incidents'), where('branchId', 'in', branchIds.slice(0, 30)));
     }
-    // If superadmin has > 30 branches, this will fetch all incidents.
-    if (userProfile?.role === 'superadmin') {
-        return collection(firestore, 'incidents');
-    }
-    // For regular users with > 30 branches, this would need a more complex solution (e.g., multiple queries).
-    // For now, we fall back to a query that finds nothing to avoid errors.
+
+    // Return a query that finds nothing if user has no branches
     return query(collection(firestore, 'incidents'), where('branchId', 'in', ['non-existent-id']));
-
-  }, [firestore, branches, userProfile?.role]);
+  }, [firestore, userProfile, branches, isLoadingBranches]);
 
   const { data: incidents, isLoading: isLoadingIncidents } = useCollection<Incident>(incidentsQuery);
 
-  const isLoading = isProfileLoading || isLoadingBranches;
+  const isLoading = isProfileLoading || isLoadingBranches || (incidents === null && isLoadingIncidents);
+
 
   if (isLoading || !user) {
     return (

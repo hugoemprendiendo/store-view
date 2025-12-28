@@ -24,12 +24,16 @@ service cloud.firestore {
     }
 
     function isAssignedToBranch(branchId) {
-      return isSignedIn() && branchId in getUserData(request.auth.uid).assignedBranches;
+      // Ensure user data exists and has assignedBranches before checking.
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             branchId in getUserData(request.auth.uid).assignedBranches;
     }
 
     match /users/{userId} {
       allow create: if isCreatingOwnProfile(userId);
       allow read, update: if isSuperAdmin() || isCreatingOwnProfile(userId);
+      allow list: if isSuperAdmin();
     }
 
     match /branches/{branchId} {
@@ -47,7 +51,8 @@ service cloud.firestore {
         return request.method == 'create' ? request.resource.data.branchId : resource.data.branchId;
       }
       
-      allow read, write: if isSuperAdmin() || isAssignedToBranch(getBranchIdForIncident());
+      allow get, write: if isSuperAdmin() || isAssignedToBranch(getBranchIdForIncident());
+      allow list: if isSuperAdmin();
     }
   }
 }
