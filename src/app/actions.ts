@@ -20,7 +20,13 @@ export async function transcribeAudio(input: TranscribeAudioInput) {
     return { success: true, data: result };
   } catch (error: any) {
     console.error('Error in transcribeAudio server action:', error);
-    // Propagate the actual error message to the client
+    
+    // Check if the error message contains a 429 status code for rate limiting
+    if (error.message && error.message.includes('429')) {
+      return { success: false, error: 'Demasiadas solicitudes. Por favor, espera un momento antes de volver a intentarlo.' };
+    }
+
+    // Propagate the actual error message to the client for other errors
     return { success: false, error: error.message || 'An unknown error occurred during transcription.' };
   }
 }
