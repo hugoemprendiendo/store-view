@@ -90,10 +90,11 @@ export function IncidentFormStep1({ onStepComplete }: IncidentFormStep1Props) {
             }
         } catch (error) {
             console.error('Error de transcripción:', error);
+            const description = error instanceof Error ? error.message : 'No se pudo transcribir el audio grabado.';
             toast({
                 variant: 'destructive',
                 title: 'Fallo en la Transcripción',
-                description: 'No se pudo transcribir el audio grabado.',
+                description,
             });
         } finally {
             setIsTranscribing(false);
