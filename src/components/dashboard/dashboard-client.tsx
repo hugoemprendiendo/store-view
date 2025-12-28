@@ -24,12 +24,14 @@ interface DashboardClientProps {
 type StatusFilter = 'error' | 'warning' | 'ok' | 'all';
 
 function getBranchStatus(branchIncidents: Incident[]): 'error' | 'warning' | 'ok' {
-    const openIncidents = branchIncidents.filter((i) => i.status !== 'Resuelto');
-    if (openIncidents.some((i) => i.priority === 'High')) {
-      return 'error';
+    const hasOpen = branchIncidents.some((i) => i.status === 'Abierto');
+    const hasInProgress = branchIncidents.some((i) => i.status === 'En Progreso');
+
+    if (hasOpen) {
+        return 'error';
     }
-    if (openIncidents.some((i) => i.priority === 'Medium')) {
-      return 'warning';
+    if (hasInProgress) {
+        return 'warning';
     }
     return 'ok';
 }

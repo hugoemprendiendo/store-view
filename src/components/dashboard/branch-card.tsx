@@ -10,11 +10,13 @@ interface BranchCardProps {
 }
 
 function getBranchStatus(incidents: Incident[]): 'error' | 'warning' | 'ok' {
-  const openIncidents = incidents.filter((i) => i.status !== 'Resuelto');
-  if (openIncidents.some((i) => i.priority === 'High')) {
+  const hasOpen = incidents.some((i) => i.status === 'Abierto');
+  const hasInProgress = incidents.some((i) => i.status === 'En Progreso');
+
+  if (hasOpen) {
     return 'error';
   }
-  if (openIncidents.some((i) => i.priority === 'Medium')) {
+  if (hasInProgress) {
     return 'warning';
   }
   return 'ok';
