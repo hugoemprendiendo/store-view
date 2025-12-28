@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,8 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { IncidentCategories as defaultCategories, IncidentPriorities, IncidentStatuses } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Loader2, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useUserProfile } from '@/hooks/useUserProfile';
 
 const priorityTextMap = {
     Low: 'Baja',
@@ -21,6 +23,15 @@ export default function SettingsPage() {
   const [categories, setCategories] = useState(defaultCategories);
   const [newCategory, setNewCategory] = useState('');
   const { toast } = useToast();
+  const router = useRouter();
+  const { userProfile, isLoading } = useUserProfile();
+
+  useEffect(() => {
+    if (!isLoading && userProfile?.role !== 'superadmin') {
+      router.push('/');
+    }
+  }, [isLoading, userProfile, router]);
+
 
   const handleAddCategory = () => {
     if (newCategory && !categories.includes(newCategory)) {
@@ -46,6 +57,32 @@ export default function SettingsPage() {
         description: `"${categoryToRemove}" ha sido eliminada. Nota: Este es un cambio del lado del cliente y no persistirá.`,
     });
   };
+
+  if (isLoading || !userProfile) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Header title="Configuración" />
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
+
+  if (userProfile.role !== 'superadmin') {
+    return (
+        <div className="flex flex-col gap-4">
+            <Header title="Acceso Denegado" />
+            <div className="flex flex-col items-center justify-center gap-6 rounded-lg border bg-card text-card-foreground shadow-sm p-10 text-center">
+                <ShieldAlert className="size-16 text-destructive" />
+                <h2 className="text-2xl font-bold">Acceso Restringido</h2>
+                <p className="text-muted-foreground">
+                    No tienes permisos de superadministrador para ver esta página.
+                </p>
+            </div>
+        </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">

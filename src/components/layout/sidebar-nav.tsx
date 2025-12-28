@@ -24,9 +24,8 @@ const links = [
 
 const adminLinks = [
     { href: '/admin/users', label: 'Usuarios', icon: Users },
+    { href: '/settings', label: 'Configuración', icon: Settings }
 ]
-
-const settingsLink = { href: '/settings', label: 'Configuración', icon: Settings };
 
 
 export function SidebarNav() {
@@ -82,7 +81,7 @@ export function SidebarNav() {
              <SidebarMenuItem key={link.href}>
               <Link href={link.href}>
                 <SidebarMenuButton
-                  isActive={pathname === link.href}
+                  isActive={pathname.startsWith(link.href)}
                   tooltip={link.label}
                 >
                   <link.icon />
@@ -91,17 +90,6 @@ export function SidebarNav() {
               </Link>
             </SidebarMenuItem>
           ))}
-           <SidebarMenuItem>
-              <Link href={settingsLink.href}>
-                <SidebarMenuButton
-                  isActive={pathname === settingsLink.href}
-                  tooltip={settingsLink.label}
-                >
-                  <settingsLink.icon />
-                  <span>{settingsLink.label}</span>
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
