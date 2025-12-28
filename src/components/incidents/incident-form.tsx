@@ -93,6 +93,13 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
             createdAt: new Date().toISOString(),
         };
 
+        // Remove any undefined fields before sending to Firestore
+        Object.keys(incidentToCreate).forEach(key => {
+            if (incidentToCreate[key] === undefined) {
+                delete incidentToCreate[key];
+            }
+        });
+
         await addDoc(incidentsCol, incidentToCreate);
       
         toast({
