@@ -20,45 +20,55 @@ service cloud.firestore {
     }
 
     function isSuperAdmin() {
-      // Check if user is signed in before trying to get their role.
-      return isSignedIn() && getRole() == 'superadmin';
+      // A user is a superadmin if they are signed in, their user document exists,
+      // and their role is 'superadmin'.
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getRole() == 'superadmin';
     }
 
     function isAssignedToBranch(branchId) {
-      // Superadmins can access everything, no need to check assignedBranches.
-      if (isSuperAdmin()) {
-        return true;
-      }
-      // For regular users, check if the user document exists and if the branchId is in their assigned list.
-      return isSignedIn() &&
+      // A regular user is assigned to a branch if their user document exists,
+      // they have an 'assignedBranches' list, and the branchId is in that list.
+      return isSignedIn() && 
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              'assignedBranches' in getUserData(request.auth.uid) &&
              branchId in getUserData(request.auth.uid).assignedBranches;
     }
 
     match /users/{userId} {
+      // A user can create their own profile.
       allow create: if isCreatingOwnProfile(userId);
+      // A user can read/update their own profile. A superadmin can read/update any profile.
       allow read, update: if isSuperAdmin() || isCreatingOwnProfile(userId);
+      // Only superadmins can list all users.
       allow list: if isSuperAdmin();
     }
 
     match /branches/{branchId} {
+      // Superadmins can list all branches.
       allow list: if isSuperAdmin();
-      // A user can get a specific branch document if they are assigned to it.
-      allow get: if isAssignedToBranch(branchId);
+      // Superadmins or users assigned to a branch can get that specific branch document.
+      allow get: if isSuperAdmin() || isAssignedToBranch(branchId);
+      // Only superadmins can create, update, or delete branches.
       allow write: if isSuperAdmin();
     }
 
     match /incidents/{incidentId} {
+      // Helper function to get the branchId from the incident being read or written.
       function getBranchIdForIncident() {
         return request.method == 'create' ? request.resource.data.branchId : resource.data.branchId;
       }
       
-      // A user can get or write a specific incident if they are assigned to the corresponding branch.
-      allow get, write: if isAssignedToBranch(getBranchIdForIncident());
+      // Superadmins or users assigned to the incident's branch can get or write that incident.
+      allow get, write: if isSuperAdmin() || isAssignedToBranch(getBranchIdForIncident());
 
-      // A user can list incidents if the query is scoped to a branch they are assigned to.
-      allow list: if isSignedIn() && isAssignedToBranch(request.query.where.branchId.to_list()[0]);
+      // Superadmins can list all incidents.
+      // Users can list incidents if the query is filtered by a branchId they are assigned to.
+      allow list: if isSuperAdmin() || (
+        isSignedIn() &&
+        request.query.keys().hasAny(['where']) &&
+        request.query.where.branchId.to_list().size() > 0 &&
+        isAssignedToBranch(request.query.where.branchId.to_list()[0])
+      );
     }
   }
 }
