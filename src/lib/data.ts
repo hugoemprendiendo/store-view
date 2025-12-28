@@ -15,6 +15,28 @@ const branches: Branch[] = [
   { id: '10', name: 'Dairy Queen Chapultepec', region: 'San Luis', brand: 'DQ', address: 'Chapultepec, San Luis, SLP', imageUrl: getImage('branch-1')?.imageUrl!, imageHint: getImage('branch-1')?.imageHint! },
   { id: '11', name: 'Dairy Queen - Centro', region: 'San Luis', brand: 'DQ', address: 'Av Himno Nacional, San Luis, SLP', imageUrl: getImage('branch-3')?.imageUrl!, imageHint: getImage('branch-3')?.imageHint! },
   { id: '12', name: 'Dairy Queen Sendero', region: 'San Luis', brand: 'DQ', address: 'Av Industrias, San Luis, SLP', imageUrl: getImage('branch-5')?.imageUrl!, imageHint: getImage('branch-5')?.imageHint! },
+  // Merida
+  { id: '13', name: 'KFC Merida 1', region: 'Merida', brand: 'KFC', address: 'Calle 60, Merida, YUC', imageUrl: getImage('branch-1')?.imageUrl!, imageHint: getImage('branch-1')?.imageHint! },
+  { id: '14', name: 'KFC Merida 2', region: 'Merida', brand: 'KFC', address: 'Paseo de Montejo, Merida, YUC', imageUrl: getImage('branch-2')?.imageUrl!, imageHint: getImage('branch-2')?.imageHint! },
+  { id: '15', name: 'KFC Merida 3', region: 'Merida', brand: 'KFC', address: 'Av. Itzaes, Merida, YUC', imageUrl: getImage('branch-3')?.imageUrl!, imageHint: getImage('branch-3')?.imageHint! },
+  { id: '16', name: 'KFC Merida 4', region: 'Merida', brand: 'KFC', address: 'Plaza Altabrisa, Merida, YUC', imageUrl: getImage('branch-4')?.imageUrl!, imageHint: getImage('branch-4')?.imageHint! },
+  { id: '17', name: 'KFC Merida 5', region: 'Merida', brand: 'KFC', address: 'Gran Plaza, Merida, YUC', imageUrl: getImage('branch-5')?.imageUrl!, imageHint: getImage('branch-5')?.imageHint! },
+  { id: '18', name: 'DQ Merida 1', region: 'Merida', brand: 'DQ', address: 'City Center, Merida, YUC', imageUrl: getImage('branch-6')?.imageUrl!, imageHint: getImage('branch-6')?.imageHint! },
+  { id: '19', name: 'DQ Merida 2', region: 'Merida', brand: 'DQ', address: 'Paseo 60, Merida, YUC', imageUrl: getImage('branch-1')?.imageUrl!, imageHint: getImage('branch-1')?.imageHint! },
+  { id: '20', name: 'DQ Merida 3', region: 'Merida', brand: 'DQ', address: 'La Isla, Merida, YUC', imageUrl: getImage('branch-2')?.imageUrl!, imageHint: getImage('branch-2')?.imageHint! },
+  { id: '21', name: 'DQ Merida 4', region: 'Merida', brand: 'DQ', address: 'Macroplaza, Merida, YUC', imageUrl: getImage('branch-3')?.imageUrl!, imageHint: getImage('branch-3')?.imageHint! },
+  { id: '22', name: 'DQ Merida 5', region: 'Merida', brand: 'DQ', address: 'Galerias Merida, Merida, YUC', imageUrl: getImage('branch-4')?.imageUrl!, imageHint: getImage('branch-4')?.imageHint! },
+  // Puebla
+  { id: '23', name: 'KFC Puebla 1', region: 'Puebla', brand: 'KFC', address: 'Angelopolis, Puebla, PUE', imageUrl: getImage('branch-5')?.imageUrl!, imageHint: getImage('branch-5')?.imageHint! },
+  { id: '24', name: 'KFC Puebla 2', region: 'Puebla', brand: 'KFC', address: 'Zocalo, Puebla, PUE', imageUrl: getImage('branch-6')?.imageUrl!, imageHint: getImage('branch-6')?.imageHint! },
+  { id: '25', name: 'KFC Puebla 3', region: 'Puebla', brand: 'KFC', address: 'Av. Juarez, Puebla, PUE', imageUrl: getImage('branch-1')?.imageUrl!, imageHint: getImage('branch-1')?.imageHint! },
+  { id: '26', name: 'KFC Puebla 4', region: 'Puebla', brand: 'KFC', address: 'Plaza Dorada, Puebla, PUE', imageUrl: getImage('branch-2')?.imageUrl!, imageHint: getImage('branch-2')?.imageHint! },
+  { id: '27', name: 'KFC Puebla 5', region: 'Puebla', brand: 'KFC', address: 'Galerias Serdan, Puebla, PUE', imageUrl: getImage('branch-3')?.imageUrl!, imageHint: getImage('branch-3')?.imageHint! },
+  { id: '28', name: 'DQ Puebla 1', region: 'Puebla', brand: 'DQ', address: 'Explanada, Puebla, PUE', imageUrl: getImage('branch-4')?.imageUrl!, imageHint: getImage('branch-4')?.imageHint! },
+  { id: '29', name: 'DQ Puebla 2', region: 'Puebla', brand: 'DQ', address: 'Solesta, Puebla, PUE', imageUrl: getImage('branch-5')?.imageUrl!, imageHint: getImage('branch-5')?.imageHint! },
+  { id: '30', name: 'DQ Puebla 3', region: 'Puebla', brand: 'DQ', address: 'Cruz del Sur, Puebla, PUE', imageUrl: getImage('branch-6')?.imageUrl!, imageHint: getImage('branch-6')?.imageHint! },
+  { id: '31', name: 'DQ Puebla 4', region: 'Puebla', brand: 'DQ', address: 'Parque Puebla, Puebla, PUE', imageUrl: getImage('branch-1')?.imageUrl!, imageHint: getImage('branch-1')?.imageHint! },
+  { id: '32', name: 'DQ Puebla 5', region: 'Puebla', brand: 'DQ', address: 'Plaza San Pedro, Puebla, PUE', imageUrl: getImage('branch-2')?.imageUrl!, imageHint: getImage('branch-2')?.imageHint! },
 ];
 
 let incidents: Incident[] = [
