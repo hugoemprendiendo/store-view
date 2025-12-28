@@ -5,7 +5,6 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { createIncident } from '@/app/actions';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -17,6 +16,8 @@ import { IncidentCategories, IncidentPriorities, IncidentStatuses } from '@/lib/
 import { Loader2, Send } from 'lucide-react';
 import React from 'react';
 import type { AnalyzeIncidentReportOutput } from '@/ai/flows/analyze-incident-report';
+import { useFirestore } from '@/firebase';
+import { collection, addDoc, getDoc } from 'firebase/firestore';
 
 const incidentSchema = z.object({
   branchId: z.string().min(1, 'La sucursal es obligatoria.'),
@@ -42,6 +43,7 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { toast } = useToast();
+  const firestore = useFirestore();
   const branchId = searchParams.get('branchId');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
@@ -70,21 +72,33 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
       setIsSubmitting(false);
       return;
     }
-    // The createIncident action no longer needs a firestore instance passed to it
-    const result = await createIncident(data);
-    if (result.success) {
-      toast({
-        title: 'Incidencia Reportada',
-        description: 'La nueva incidencia ha sido creada exitosamente.',
-      });
-      router.push(`/branches/${data.branchId}`);
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Envío Fallido',
-        description: result.error,
-      });
+    
+    try {
+        const incidentsCol = collection(firestore, 'incidents');
+        
+        const incidentToCreate = {
+            ...data,
+            photoHint: 'user uploaded',
+            createdAt: new Date().toISOString(),
+        };
+
+        await addDoc(incidentsCol, incidentToCreate);
+      
+        toast({
+            title: 'Incidencia Reportada',
+            description: 'La nueva incidencia ha sido creada exitosamente.',
+        });
+        router.push(`/branches/${data.branchId}`);
+
+    } catch (error) {
+        console.error("Error in createIncident action:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Envío Fallido',
+            description: 'No se pudo crear la incidencia.',
+        });
     }
+
     setIsSubmitting(false);
   };
   
@@ -186,7 +200,7 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
         </div>
 
         <div className="flex justify-end items-center flex-wrap gap-4">
-          <Button type="submit" disabled={isBusy}>
+          <Button type="submit" disabled={isBusy || !firestore}>
             {isSubmitting ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (

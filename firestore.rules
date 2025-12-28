@@ -3,32 +3,29 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper Functions
     function isSignedIn() {
       return request.auth != null;
     }
     
     function isCreatingOwnProfile(userId) {
+      // A user can only create a document where the ID matches their own user ID.
       return request.auth.uid == userId;
     }
 
-    // /users/{userId}
     match /users/{userId} {
-      // A user can create their own profile document.
-      // The logic to assign 'superadmin' to the first user is handled in the application code.
+      // Anyone can create a user profile for themselves.
+      // The logic to assign roles is handled in the application client-side code.
       allow create: if isCreatingOwnProfile(userId);
       
       // Only the user themselves can read or update their own profile.
       allow read, update: if isCreatingOwnProfile(userId);
     }
 
-    // /branches/{branchId}
     match /branches/{branchId} {
       // Any signed-in user can read and write branch data.
       allow read, write: if isSignedIn();
     }
 
-    // /incidents/{incidentId}
     match /incidents/{incidentId} {
       // Any signed-in user can read and write incident data.
       allow read, write: if isSignedIn();

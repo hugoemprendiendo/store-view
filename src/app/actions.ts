@@ -2,21 +2,7 @@
 
 import { analyzeIncidentReport, AnalyzeIncidentReportInput } from '@/ai/flows/analyze-incident-report';
 import { transcribeAudio as aiTranscribeAudio, TranscribeAudioInput } from '@/ai/flows/transcribe-audio';
-import { collection, addDoc, doc, updateDoc, getDoc, Firestore } from 'firebase/firestore';
-import type { Incident } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
-import { getFirestore } from 'firebase/firestore';
-import { getApps, initializeApp } from 'firebase/app';
-import { firebaseConfig } from '@/firebase/config';
-
-// This is a temporary workaround to get a client-side firestore instance on the server
-// In a real app, you would likely have a shared admin instance for server actions.
-// NOTE: This function does not carry user auth context, causing permission errors for writes.
-function getDb() {
-    const apps = getApps();
-    const app = apps.length > 0 ? apps[0] : initializeApp(firebaseConfig);
-    return getFirestore(app);
-}
 
 export async function getAIAnalysis(input: AnalyzeIncidentReportInput) {
   try {
@@ -36,31 +22,6 @@ export async function transcribeAudio(input: TranscribeAudioInput) {
     console.error(error);
     return { success: false, error: 'Failed to transcribe audio.' };
   }
-}
-
-export async function createIncident(data: Omit<Incident, 'id' | 'createdAt'>) {
-    try {
-        const db = getDb();
-        const incidentsCol = collection(db, 'incidents');
-        
-        const incidentToCreate = {
-            ...data,
-            photoUrl: data.photoUrl, 
-            photoHint: 'user uploaded',
-            createdAt: new Date().toISOString(),
-        };
-
-        const newDocRef = await addDoc(incidentsCol, incidentToCreate);
-        const newIncidentSnap = await getDoc(newDocRef);
-        const newIncident = { id: newDocRef.id, ...newIncidentSnap.data() } as Incident;
-
-        revalidatePath('/');
-        revalidatePath(`/branches/${data.branchId}`);
-        return { success: true, data: newIncident };
-    } catch (error) {
-        console.error("Error in createIncident action:", error);
-        return { success: false, error: 'Failed to create incident.' };
-    }
 }
 
 export async function revalidateIncidentPaths(incidentId: string, branchId: string) {

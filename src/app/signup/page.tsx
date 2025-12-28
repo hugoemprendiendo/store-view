@@ -27,7 +27,7 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { Loader2, UserPlus, Store } from 'lucide-react';
-import { doc, setDoc, getDocs, collection } from 'firebase/firestore';
+import { doc, setDoc, getDocs, collection, query, limit } from 'firebase/firestore';
 
 const signupSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres.'),
@@ -51,11 +51,21 @@ export default function SignupPage() {
   });
 
   const onSubmit = async (values: z.infer<typeof signupSchema>) => {
+    if (!firestore) {
+      toast({
+        variant: "destructive",
+        title: "Error de base de datos",
+        description: "No se pudo conectar a la base de datos.",
+      });
+      return;
+    }
     setIsSubmitting(true);
     try {
       // Check if any user exists to determine the role
       const usersCollection = collection(firestore, 'users');
-      const usersSnapshot = await getDocs(usersCollection);
+      // We only need to know if there's at least one, so we limit the query.
+      const usersQuery = query(usersCollection, limit(1));
+      const usersSnapshot = await getDocs(usersQuery);
       const isFirstUser = usersSnapshot.empty;
       const role = isFirstUser ? 'superadmin' : 'user';
 
@@ -81,6 +91,8 @@ export default function SignupPage() {
       let description = 'Ocurrió un error inesperado.';
       if (error.code === 'auth/email-already-in-use') {
           description = 'Este correo electrónico ya está en uso.';
+      } else if (error.code === 'permission-denied' || error.name === 'FirebaseError' && error.message.includes('permission-denied')) {
+          description = 'No tienes permiso para crear una cuenta. Contacta al administrador.';
       }
       toast({
         variant: 'destructive',
@@ -154,7 +166,7 @@ export default function SignupPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
+              <Button type="submit" className="w-full" disabled={isSubmitting || !firestore}>
                 {isSubmitting ? (
                   <Loader2 className="animate-spin" />
                 ) : (
