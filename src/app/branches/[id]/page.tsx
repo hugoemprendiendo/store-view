@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getBranchById, getIncidentsByBranch } from '@/lib/data';
+import { getBranchById } from '@/lib/data';
 import { notFound, useParams, useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,8 +15,8 @@ import type { Branch, Incident } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { revalidateIncidentPaths } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useUser } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { useFirestore, useUser, useMemoFirebase, useCollection } from '@/firebase';
+import { doc, updateDoc, collection, query, where } from 'firebase/firestore';
 
 const priorityVariantMap = {
   Low: 'secondary',
@@ -33,15 +33,14 @@ export default function BranchDetailPage() {
   const router = useRouter();
 
   const [branch, setBranch] = useState<Branch | null>(null);
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const [isLoadingBranch, setIsLoadingBranch] = useState(true);
 
+  // Fetch branch details
   useEffect(() => {
-    async function fetchData() {
-      if (!id || !firestore || !user) return;
-
-      setIsLoading(true);
+    async function fetchBranch() {
+      if (!id || !firestore) return;
+      setIsLoadingBranch(true);
       try {
         const branchData = await getBranchById(firestore, id);
         if (!branchData) {
@@ -49,27 +48,33 @@ export default function BranchDetailPage() {
           return;
         }
         setBranch(branchData);
-        const incidentsData = await getIncidentsByBranch(firestore, id);
-        setIncidents(incidentsData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       } catch (error) {
         console.error("Failed to fetch branch details:", error);
       } finally {
-        setIsLoading(false);
+        setIsLoadingBranch(false);
       }
     }
     if (!isUserLoading) {
-      fetchData();
+      fetchBranch();
     }
-  }, [id, firestore, user, isUserLoading]);
+  }, [id, firestore, isUserLoading]);
+
+  // Query for incidents related to this branch
+  const incidentsQuery = useMemoFirebase(() => {
+    if (!firestore || !id) return null;
+    return query(collection(firestore, 'incidents'), where('branchId', '==', id));
+  }, [firestore, id]);
+
+  const { data: incidentsData, isLoading: isLoadingIncidents } = useCollection<Incident>(incidentsQuery);
+
+  const incidents = incidentsData ? [...incidentsData].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) : [];
 
   const handleStatusChange = async (incidentId: string, newStatus: Incident['status']) => {
     if (!firestore) return;
 
     setUpdatingStatus(incidentId);
-    const originalIncidents = [...incidents];
-    // Optimistic update
-    setIncidents(incidents.map(i => i.id === incidentId ? { ...i, status: newStatus } : i));
-
+    
+    // We don't need optimistic updates here because useCollection will update the UI
     try {
         const incidentRef = doc(firestore, 'incidents', incidentId);
         await updateDoc(incidentRef, { status: newStatus });
@@ -79,13 +84,10 @@ export default function BranchDetailPage() {
             description: `El estado de la incidencia cambió a "${newStatus}".`,
         });
         
-        // Trigger revalidation on relevant pages
         await revalidateIncidentPaths(incidentId, id);
         router.refresh();
 
     } catch (error) {
-      // Revert on failure
-      setIncidents(originalIncidents);
       toast({
         variant: 'destructive',
         title: 'Actualización Fallida',
@@ -97,7 +99,9 @@ export default function BranchDetailPage() {
     }
   };
   
-  if (isLoading || isUserLoading) {
+  const isLoading = isLoadingBranch || isUserLoading || (incidentsQuery !== null && isLoadingIncidents);
+
+  if (isLoading) {
     return (
         <div className="flex flex-col gap-6">
              <Header title="Cargando..." />
