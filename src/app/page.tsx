@@ -2,20 +2,26 @@
 import { Header } from '@/components/layout/header';
 import { getBranches, getIncidents } from '@/lib/data';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { useEffect, useState } from 'react';
 import type { Branch, Incident } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
 import { useAuth } from '@/firebase';
+import { collection } from 'firebase/firestore';
 
 export default function DashboardPage() {
   const firestore = useFirestore();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // Create memoized collection references
+  const branchesQuery = useMemoFirebase(() => firestore ? collection(firestore, 'branches') : null, [firestore]);
+  const incidentsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'incidents') : null, [firestore]);
+
+  // Subscribe to real-time updates
+  const { data: branches, isLoading: isLoadingBranches } = useCollection<Branch>(branchesQuery);
+  const { data: incidents, isLoading: isLoadingIncidents } = useCollection<Incident>(incidentsQuery);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -23,22 +29,9 @@ export default function DashboardPage() {
     }
   }, [isUserLoading, user, auth]);
 
-  useEffect(() => {
-    async function fetchData() {
-      if (!user || !firestore) return;
-      setIsLoading(true);
-      const [branchesData, incidentsData] = await Promise.all([
-        getBranches(firestore),
-        getIncidents(firestore)
-      ]);
-      setBranches(branchesData);
-      setIncidents(incidentsData);
-      setIsLoading(false);
-    }
-    fetchData();
-  }, [firestore, user]);
+  const isLoading = isUserLoading || isLoadingBranches || isLoadingIncidents;
 
-  if (isUserLoading || (isLoading && user)) {
+  if (isLoading || (isLoading && user)) {
     return (
       <div className="flex flex-col gap-6">
         <Header title="Panel de Control" />
@@ -53,7 +46,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <Header title="Panel de Control" />
-      <DashboardClient branches={branches} incidents={incidents} />
+      <DashboardClient branches={branches || []} incidents={incidents || []} />
     </div>
   );
 }
