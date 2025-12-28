@@ -20,15 +20,20 @@ service cloud.firestore {
     }
 
     function isSuperAdmin() {
+      // Check if user is signed in before trying to get their role.
       return isSignedIn() && getRole() == 'superadmin';
     }
 
     function isAssignedToBranch(branchId) {
-      // Ensure user data exists and has assignedBranches before checking.
-      return isSignedIn() && 
+      // Superadmins can access everything, no need to check assignedBranches.
+      if (isSuperAdmin()) {
+        return true;
+      }
+      // For regular users, check if the user document exists and if the branchId is in their assigned list.
+      return isSignedIn() &&
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              'assignedBranches' in getUserData(request.auth.uid) &&
-             getUserData(request.auth.uid).assignedBranches.hasAny([branchId]);
+             branchId in getUserData(request.auth.uid).assignedBranches;
     }
 
     match /users/{userId} {
@@ -39,7 +44,8 @@ service cloud.firestore {
 
     match /branches/{branchId} {
       allow list: if isSuperAdmin();
-      allow get: if isSuperAdmin() || isAssignedToBranch(branchId);
+      // A user can get a specific branch document if they are assigned to it.
+      allow get: if isAssignedToBranch(branchId);
       allow write: if isSuperAdmin();
     }
 
@@ -48,10 +54,11 @@ service cloud.firestore {
         return request.method == 'create' ? request.resource.data.branchId : resource.data.branchId;
       }
       
-      allow get, write: if isSuperAdmin() || isAssignedToBranch(getBranchIdForIncident());
+      // A user can get or write a specific incident if they are assigned to the corresponding branch.
+      allow get, write: if isAssignedToBranch(getBranchIdForIncident());
 
-      // Allow a user to list incidents if they are assigned to the branch specified in the query
-      allow list: if isSuperAdmin() || (isSignedIn() && isAssignedToBranch(request.query.where.branchId.to_list()[0]));
+      // A user can list incidents if the query is scoped to a branch they are assigned to.
+      allow list: if isSignedIn() && isAssignedToBranch(request.query.where.branchId.to_list()[0]);
     }
   }
 }
