@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, Cpu } from 'lucide-react';
 import { getAIAnalysis } from '@/app/actions';
 import { IncidentReviewForm } from '@/components/incidents/incident-form';
 import type { IncidentData } from '@/app/incidents/new/page';
@@ -141,11 +141,21 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
                     audioTranscription: incidentData.audioTranscription,
                 }} />
             </CardContent>
-            <CardFooter className="flex justify-start">
+            <CardFooter className="flex flex-col items-start gap-4">
                 <Button variant="outline" onClick={onBack}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Volver al Paso 1
                 </Button>
+                {analysisResult.totalTokens && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground border rounded-full px-3 py-1">
+                        <Cpu className="size-4" />
+                        <span>Consumo de IA:</span>
+                        <span className="font-semibold">{analysisResult.totalTokens} tokens</span>
+                        <span className="text-muted-foreground/50">
+                            (Entrada: {analysisResult.inputTokens}, Salida: {analysisResult.outputTokens})
+                        </span>
+                    </div>
+                )}
             </CardFooter>
         </Card>
     );

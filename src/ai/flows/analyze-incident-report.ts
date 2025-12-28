@@ -29,6 +29,9 @@ const AnalyzeIncidentReportOutputSchema = z.object({
   suggestedPriority: z.string().describe('A suggested priority for the incident report (e.g., High, Medium, Low).'),
   suggestedStatus: z.string().describe('A suggested status for the incident report (e.g., Open, In Progress, Resolved).'),
   suggestedDescription: z.string().describe('A detailed, structured description of the incident based on the available evidence (photo, audio, text).'),
+  inputTokens: z.number().optional().describe('The number of tokens used in the input.'),
+  outputTokens: z.number().optional().describe('The number of tokens used in the output.'),
+  totalTokens: z.number().optional().describe('The total number of tokens used.'),
 });
 export type AnalyzeIncidentReportOutput = z.infer<typeof AnalyzeIncidentReportOutputSchema>;
 
@@ -70,7 +73,12 @@ const analyzeIncidentReportFlow = ai.defineFlow(
     outputSchema: AnalyzeIncidentReportOutputSchema,
   },
   async input => {
-    const {output} = await analyzeIncidentReportPrompt(input);
-    return output!;
+    const {output, usage} = await analyzeIncidentReportPrompt(input);
+    return {
+      ...output!,
+      inputTokens: usage?.inputTokens,
+      outputTokens: usage?.outputTokens,
+      totalTokens: usage?.totalTokens,
+    };
   }
 );
