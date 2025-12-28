@@ -27,8 +27,10 @@ service cloud.firestore {
       }
       
       // For regular users, check if the branchId key exists in their assignedBranches map.
-      let userDoc = getUserData(request.auth.uid);
-      return isSignedIn() && 'assignedBranches' in userDoc && branchId in userDoc.assignedBranches;
+      let userDocData = getUserData(request.auth.uid);
+      return isSignedIn() && 
+             'assignedBranches' in userDocData && 
+             branchId in userDocData.assignedBranches;
     }
 
     match /users/{userId} {
@@ -51,8 +53,7 @@ service cloud.firestore {
 
       allow list: if isSuperAdmin() || (
         isSignedIn() &&
-        request.query.keys().hasAny(['where']) &&
-        request.query.where.branchId is string &&
+        'branchId' in request.query.where &&
         isAssignedToBranch(request.query.where.branchId)
       );
     }

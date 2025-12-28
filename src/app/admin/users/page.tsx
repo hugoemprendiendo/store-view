@@ -73,7 +73,9 @@ export default function UsersPage() {
   const totalLoading = isLoading || isProfileLoading;
 
   const handleUserUpdate = (updatedUser: UserProfile) => {
-    setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+    setUsers(currentUsers => 
+        currentUsers.map(u => u.id === updatedUser.id ? updatedUser : u)
+    );
   };
 
   if (totalLoading) {
