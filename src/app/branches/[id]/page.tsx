@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { updateIncidentStatus } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { useFirestore } from '@/firebase';
 
 const priorityVariantMap = {
   Low: 'secondary',
@@ -24,6 +25,7 @@ const priorityVariantMap = {
 } as const;
 
 export default function BranchDetailPage() {
+  const firestore = useFirestore();
   const params = useParams();
   const id = params.id as string;
   const { toast } = useToast();
@@ -38,12 +40,12 @@ export default function BranchDetailPage() {
     async function fetchData() {
       setIsLoading(true);
       try {
-        const branchData = await getBranchById(id);
+        const branchData = await getBranchById(firestore, id);
         if (!branchData) {
           notFound();
         }
         setBranch(branchData);
-        const incidentsData = await getIncidentsByBranch(id);
+        const incidentsData = await getIncidentsByBranch(firestore, id);
         setIncidents(incidentsData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       } catch (error) {
         console.error("Failed to fetch branch details:", error);
@@ -51,10 +53,10 @@ export default function BranchDetailPage() {
         setIsLoading(false);
       }
     }
-    if (id) {
+    if (id && firestore) {
       fetchData();
     }
-  }, [id]);
+  }, [id, firestore]);
 
   const handleStatusChange = async (incidentId: string, newStatus: Incident['status']) => {
     setUpdatingStatus(incidentId);
@@ -69,7 +71,7 @@ export default function BranchDetailPage() {
         title: 'Estado Actualizado',
         description: `El estado de la incidencia cambió a "${newStatus}".`,
       });
-      // Force a router refresh to re-fetch server data in other pages
+      // The revalidation in the action should handle refreshing data across the app.
       router.refresh();
     } else {
       // Revert on failure

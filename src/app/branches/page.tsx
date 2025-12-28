@@ -17,8 +17,10 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Eye, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useFirestore } from '@/firebase';
 
 export default function BranchesPage() {
+  const firestore = useFirestore();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedRegion, setSelectedRegion] = useState('all');
@@ -26,12 +28,12 @@ export default function BranchesPage() {
   useEffect(() => {
     async function fetchData() {
       setIsLoading(true);
-      const branchesData = await getBranches();
+      const branchesData = await getBranches(firestore);
       setBranches(branchesData);
       setIsLoading(false);
     }
     fetchData();
-  }, []);
+  }, [firestore]);
 
   const regions = useMemo(() => {
     return ['all', ...Array.from(new Set(branches.map((b) => b.region)))];

@@ -6,6 +6,14 @@ import { transcribeAudio as aiTranscribeAudio, TranscribeAudioInput } from '@/ai
 import { createIncident as dbCreateIncident, updateIncidentStatus as dbUpdateIncidentStatus } from '@/lib/data';
 import type { Incident } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
+import { getFirestore } from 'firebase-admin/firestore';
+import { initializeAdminApp } from '@/lib/firebase-admin';
+
+// Helper to get Firestore instance
+async function getDb() {
+  const { firestore } = initializeAdminApp();
+  return firestore;
+}
 
 export async function getAIAnalysis(input: AnalyzeIncidentReportInput) {
   try {
@@ -29,18 +37,16 @@ export async function transcribeAudio(input: TranscribeAudioInput) {
 
 export async function createIncident(data: Omit<Incident, 'id' | 'createdAt'>) {
     try {
-        // The form passes the full data URI for the photo, but we just want to store it for now.
-        // In a real app, you'd upload this to a storage service (e.g., Firebase Storage)
-        // and store the URL. For this demo, we'll just pass it through.
+        const db = await getDb();
         const incidentToCreate = {
             ...data,
-            photoUrl: data.photo, // 'photo' from form is the data URI.
+            photoUrl: data.photo, 
             photoHint: 'user uploaded',
         };
         delete incidentToCreate.photo;
 
 
-        const newIncident = await dbCreateIncident(incidentToCreate);
+        const newIncident = await dbCreateIncident(db, incidentToCreate);
         revalidatePath('/');
         revalidatePath(`/branches/${data.branchId}`);
         return { success: true, data: newIncident };
@@ -52,7 +58,8 @@ export async function createIncident(data: Omit<Incident, 'id' | 'createdAt'>) {
 
 export async function updateIncidentStatus(id: string, status: Incident['status']) {
     try {
-        const updatedIncident = await dbUpdateIncidentStatus(id, status);
+        const db = await getDb();
+        const updatedIncident = await dbUpdateIncidentStatus(db, id, status);
         if (!updatedIncident) {
             return { success: false, error: 'Incidencia no encontrada.' };
         }
