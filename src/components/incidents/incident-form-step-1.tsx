@@ -53,15 +53,15 @@ export function IncidentFormStep1({ onStepComplete }: IncidentFormStep1Props) {
             mediaRecorderRef.current.start();
             setIsRecording(true);
             toast({
-                title: 'Recording Started',
-                description: 'Speak now. Click the stop button when you are finished.',
+                title: 'Grabación Iniciada',
+                description: 'Hable ahora. Haz clic en el botón de parar cuando hayas terminado.',
             });
         } catch (error) {
-            console.error('Error starting recording:', error);
+            console.error('Error al iniciar la grabación:', error);
             toast({
                 variant: 'destructive',
-                title: 'Recording Error',
-                description: 'Could not start audio recording. Please ensure you have given microphone permissions.',
+                title: 'Error de Grabación',
+                description: 'No se pudo iniciar la grabación de audio. Asegúrate de haber dado permisos para el micrófono.',
             });
         }
     };
@@ -75,25 +75,25 @@ export function IncidentFormStep1({ onStepComplete }: IncidentFormStep1Props) {
 
     const handleTranscription = async (audioBlob: Blob) => {
         setIsTranscribing(true);
-        toast({ title: 'Transcribing audio...', description: 'This may take a moment.' });
+        toast({ title: 'Transcribiendo audio...', description: 'Esto puede tardar un momento.' });
         try {
             const audioDataUri = await fileToDataURI(audioBlob as File);
             const result = await transcribeAudio({ audioDataUri });
             if (result.success && result.data) {
                 setAudioTranscription(result.data);
                 toast({
-                    title: 'Transcription Complete',
-                    description: 'The audio has been transcribed.',
+                    title: 'Transcripción Completa',
+                    description: 'El audio ha sido transcrito.',
                 });
             } else {
-                throw new Error(result.error || 'Transcription failed');
+                throw new Error(result.error || 'La transcripción falló');
             }
         } catch (error) {
-            console.error('Transcription error:', error);
+            console.error('Error de transcripción:', error);
             toast({
                 variant: 'destructive',
-                title: 'Transcription Failed',
-                description: 'Could not transcribe the recorded audio.',
+                title: 'Fallo en la Transcripción',
+                description: 'No se pudo transcribir el audio grabado.',
             });
         } finally {
             setIsTranscribing(false);
@@ -107,8 +107,8 @@ export function IncidentFormStep1({ onStepComplete }: IncidentFormStep1Props) {
         if (!photoFile && !audioTranscription && !textDescription) {
             toast({
                 variant: 'destructive',
-                title: 'Information Required',
-                description: 'Please provide a photo, an audio recording, or a text description to continue.',
+                title: 'Información Requerida',
+                description: 'Por favor, proporciona una foto, una grabación de audio o una descripción de texto para continuar.',
             });
             setIsProcessing(false);
             return;
@@ -120,8 +120,8 @@ export function IncidentFormStep1({ onStepComplete }: IncidentFormStep1Props) {
             } catch (error) {
                 toast({
                     variant: 'destructive',
-                    title: 'Error reading file',
-                    description: 'Could not process the uploaded photo.',
+                    title: 'Error al leer el archivo',
+                    description: 'No se pudo procesar la foto subida.',
                 });
                 setIsProcessing(false);
                 return;
@@ -139,14 +139,14 @@ export function IncidentFormStep1({ onStepComplete }: IncidentFormStep1Props) {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Step 1: Provide Evidence</CardTitle>
+                <CardTitle>Paso 1: Proporcionar Evidencia</CardTitle>
                 <CardDescription>
-                    Upload a photo, record an audio description, or write a text description of the incident.
+                    Sube una foto, graba una descripción en audio o escribe una descripción en texto de la incidencia.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
                 <div className="space-y-2">
-                    <label className="text-sm font-medium">Photo of Incident</label>
+                    <label className="text-sm font-medium">Foto de la Incidencia</label>
                     <Input 
                         type="file" 
                         accept="image/*" 
@@ -156,17 +156,17 @@ export function IncidentFormStep1({ onStepComplete }: IncidentFormStep1Props) {
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-sm font-medium">Audio Report</label>
+                    <label className="text-sm font-medium">Reporte de Audio</label>
                     <div className="flex items-center gap-2">
                         {!isRecording ? (
                             <Button type="button" variant="outline" onClick={handleStartRecording} disabled={isBusy}>
                                 <Mic className="mr-2 h-4 w-4" />
-                                Record Audio
+                                Grabar Audio
                             </Button>
                         ) : (
                             <Button type="button" variant="destructive" onClick={handleStopRecording} disabled={isTranscribing}>
                                 <StopCircle className="mr-2 h-4 w-4" />
-                                {isTranscribing ? 'Transcribing...' : 'Stop Recording'}
+                                {isTranscribing ? 'Transcribiendo...' : 'Detener Grabación'}
                             </Button>
                         )}
                         {isTranscribing && <Loader2 className="h-5 w-5 animate-spin" />}
@@ -177,9 +177,9 @@ export function IncidentFormStep1({ onStepComplete }: IncidentFormStep1Props) {
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-sm font-medium">Text Description</label>
+                    <label className="text-sm font-medium">Descripción de Texto</label>
                     <Textarea 
-                        placeholder="Or, type a detailed description of the incident here..." 
+                        placeholder="O, escribe una descripción detallada de la incidencia aquí..." 
                         value={textDescription}
                         onChange={(e) => setTextDescription(e.target.value)}
                         className="h-[150px]"
@@ -194,7 +194,7 @@ export function IncidentFormStep1({ onStepComplete }: IncidentFormStep1Props) {
                     ) : (
                         <ArrowRight className="mr-2 h-4 w-4" />
                     )}
-                    Analyze & Proceed
+                    Analizar y Continuar
                 </Button>
             </CardFooter>
         </Card>

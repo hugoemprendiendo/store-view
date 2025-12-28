@@ -30,7 +30,7 @@ export default async function BranchDetailPage({ params }: { params: { id: strin
         <Button asChild className="bg-accent hover:bg-accent/90">
           <Link href={`/incidents/new?branchId=${branch.id}`}>
             <PlusCircle className="mr-2 h-4 w-4" />
-            Report Incident
+            Reportar Incidencia
           </Link>
         </Button>
       </Header>
@@ -39,7 +39,7 @@ export default async function BranchDetailPage({ params }: { params: { id: strin
         <div className="md:col-span-1 space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>Branch Details</CardTitle>
+                    <CardTitle>Detalles de la Sucursal</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="relative h-48 w-full rounded-md overflow-hidden">
@@ -71,9 +71,9 @@ export default async function BranchDetailPage({ params }: { params: { id: strin
         <div className="md:col-span-2">
             <Card>
                 <CardHeader>
-                <CardTitle>Incidents</CardTitle>
+                <CardTitle>Incidencias</CardTitle>
                 <CardDescription>
-                    A list of incidents reported for this branch.
+                    Una lista de incidencias reportadas para esta sucursal.
                 </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -81,12 +81,12 @@ export default async function BranchDetailPage({ params }: { params: { id: strin
                     <Table>
                         <TableHeader>
                         <TableRow>
-                            <TableHead>Title</TableHead>
-                            <TableHead>Category</TableHead>
-                            <TableHead>Priority</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead className="text-right">View</TableHead>
+                            <TableHead>Título</TableHead>
+                            <TableHead>Categoría</TableHead>
+                            <TableHead>Prioridad</TableHead>
+                            <TableHead>Estado</TableHead>
+                            <TableHead>Fecha</TableHead>
+                            <TableHead className="text-right">Ver</TableHead>
                         </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -103,7 +103,7 @@ export default async function BranchDetailPage({ params }: { params: { id: strin
                             <TableCell>{format(new Date(incident.createdAt), 'MMM d, yyyy')}</TableCell>
                             <TableCell className="text-right">
                                 <Button asChild variant="outline" size="sm">
-                                <Link href={`/incidents/${incident.id}`}>Details</Link>
+                                <Link href={`/incidents/${incident.id}`}>Detalles</Link>
                                 </Button>
                             </TableCell>
                             </TableRow>
@@ -111,7 +111,7 @@ export default async function BranchDetailPage({ params }: { params: { id: strin
                         </TableBody>
                     </Table>
                     ) : (
-                        <p className="text-center text-muted-foreground py-8">No incidents reported for this branch yet.</p>
+                        <p className="text-center text-muted-foreground py-8">No hay incidencias reportadas para esta sucursal todavía.</p>
                     )}
                 </CardContent>
             </Card>

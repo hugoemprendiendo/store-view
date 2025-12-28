@@ -12,9 +12,9 @@ import {
 import { Building2, LayoutGrid, Settings, Store } from 'lucide-react';
 
 const links = [
-  { href: '/', label: 'Dashboard', icon: LayoutGrid },
-  { href: '/branches', label: 'Branches', icon: Building2 },
-  { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/', label: 'Panel de Control', icon: LayoutGrid },
+  { href: '/branches', label: 'Sucursales', icon: Building2 },
+  { href: '/settings', label: 'Configuración', icon: Settings },
 ];
 
 export function SidebarNav() {

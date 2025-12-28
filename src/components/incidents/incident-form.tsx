@@ -19,12 +19,12 @@ import React from 'react';
 import type { AnalyzeIncidentReportOutput } from '@/ai/flows/analyze-incident-report';
 
 const incidentSchema = z.object({
-  branchId: z.string().min(1, 'Branch is required.'),
-  title: z.string().min(3, 'Title must be at least 3 characters.'),
+  branchId: z.string().min(1, 'La sucursal es obligatoria.'),
+  title: z.string().min(3, 'El título debe tener al menos 3 caracteres.'),
   description: z.string().optional(),
   audioTranscription: z.string().optional(),
   photo: z.string().optional(),
-  category: z.string().min(1, 'Category is required.'),
+  category: z.string().min(1, 'La categoría es obligatoria.'),
   priority: z.enum(IncidentPriorities),
   status: z.string().default('Open'),
 });
@@ -64,8 +64,8 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
     if (!data.branchId) {
       toast({
         variant: 'destructive',
-        title: 'Missing Branch',
-        description: 'Please select a branch from the dashboard or branch page first.',
+        title: 'Falta Sucursal',
+        description: 'Por favor, selecciona primero una sucursal desde el panel de control o la página de sucursales.',
       });
       setIsSubmitting(false);
       return;
@@ -73,14 +73,14 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
     const result = await createIncident(data);
     if (result.success) {
       toast({
-        title: 'Incident Reported',
-        description: 'The new incident has been successfully created.',
+        title: 'Incidencia Reportada',
+        description: 'La nueva incidencia ha sido creada exitosamente.',
       });
       router.push(`/branches/${data.branchId}`);
     } else {
       toast({
         variant: 'destructive',
-        title: 'Submission Failed',
+        title: 'Envío Fallido',
         description: result.error,
       });
     }
@@ -99,9 +99,9 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Title</FormLabel>
+                  <FormLabel>Título</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Water Leak in Aisle 3" {...field} disabled={isBusy} />
+                    <Input placeholder="Ej., Fuga de agua en pasillo 3" {...field} disabled={isBusy} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -112,9 +112,9 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Text Description</FormLabel>
+                  <FormLabel>Descripción de Texto</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="A detailed text description of the incident..." {...field} className="h-[200px]" disabled={isBusy} />
+                    <Textarea placeholder="Una descripción detallada de la incidencia..." {...field} className="h-[200px]" disabled={isBusy} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -126,9 +126,9 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
                 name="audioTranscription"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Audio Transcription</FormLabel>
+                    <FormLabel>Transcripción de Audio</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Your recorded audio will be transcribed here." {...field} disabled />
+                      <Textarea placeholder="El audio grabado se transcribirá aquí." {...field} disabled />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -142,11 +142,11 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
               name="category"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Category</FormLabel>
+                  <FormLabel>Categoría</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value} disabled={isBusy}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
+                        <SelectValue placeholder="Selecciona una categoría" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -164,11 +164,11 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
               name="priority"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Priority</FormLabel>
+                  <FormLabel>Prioridad</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value} disabled={isBusy}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a priority" />
+                        <SelectValue placeholder="Selecciona una prioridad" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -191,7 +191,7 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
             ) : (
               <Send className="mr-2 h-4 w-4" />
             )}
-            Submit Incident
+            Enviar Incidencia
           </Button>
         </div>
       </form>

@@ -18,20 +18,20 @@ export default async function BranchesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Header title="Branches" />
+      <Header title="Sucursales" />
       <Card>
         <CardHeader>
-          <CardTitle>All Branches</CardTitle>
+          <CardTitle>Todas las sucursales</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Brand</TableHead>
-                <TableHead>Region</TableHead>
-                <TableHead>Address</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>Nombre</TableHead>
+                <TableHead>Marca</TableHead>
+                <TableHead>Región</TableHead>
+                <TableHead>Dirección</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -45,7 +45,7 @@ export default async function BranchesPage() {
                     <Button asChild variant="ghost" size="icon">
                       <Link href={`/branches/${branch.id}`}>
                         <Eye className="h-4 w-4" />
-                        <span className="sr-only">View Branch</span>
+                        <span className="sr-only">Ver Sucursal</span>
                       </Link>
                     </Button>
                   </TableCell>

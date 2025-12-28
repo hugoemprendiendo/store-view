@@ -27,7 +27,7 @@ export default function NewIncidentPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Header title="Report New Incident" />
+      <Header title="Reportar Nueva Incidencia" />
       {step === 1 && <IncidentFormStep1 onStepComplete={handleStep1Complete} />}
       {step === 2 && incidentData && <IncidentFormStep2 incidentData={incidentData} onBack={handleBack} />}
     </div>

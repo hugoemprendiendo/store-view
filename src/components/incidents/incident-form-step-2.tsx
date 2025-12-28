@@ -25,8 +25,8 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
         const analyze = async () => {
             setIsAnalyzing(true);
             toast({
-                title: 'Analyzing Incident...',
-                description: 'The AI is generating the incident report. This may take a moment.',
+                title: 'Analizando Incidencia...',
+                description: 'La IA está generando el reporte de incidencia. Esto puede tardar un momento.',
             });
 
             const result = await getAIAnalysis(incidentData);
@@ -34,14 +34,14 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
             if (result.success && result.data) {
                 setAnalysisResult(result.data);
                 toast({
-                    title: 'Analysis Complete',
-                    description: 'AI suggestions have been applied to the form.',
+                    title: 'Análisis Completo',
+                    description: 'Las sugerencias de la IA han sido aplicadas al formulario.',
                 });
             } else {
                 toast({
                     variant: 'destructive',
-                    title: 'Analysis Failed',
-                    description: result.error || 'An unknown error occurred during analysis.',
+                    title: 'Análisis Fallido',
+                    description: result.error || 'Ocurrió un error desconocido durante el análisis.',
                 });
                 // Optionally, allow user to proceed with manual entry or go back
             }
@@ -55,11 +55,11 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
         return (
             <Card>
                 <CardHeader>
-                    <CardTitle>Step 2: Review & Submit</CardTitle>
+                    <CardTitle>Paso 2: Revisar y Enviar</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-col items-center justify-center gap-4 py-16">
                     <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                    <p className="text-muted-foreground">Analyzing incident data and generating report...</p>
+                    <p className="text-muted-foreground">Analizando datos de la incidencia y generando reporte...</p>
                 </CardContent>
             </Card>
         );
@@ -69,9 +69,9 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
         return (
              <Card>
                 <CardHeader>
-                    <CardTitle>Analysis Failed</CardTitle>
+                    <CardTitle>Análisis Fallido</CardTitle>
                      <CardDescription>
-                        The AI could not generate a report. You can go back and try again, or fill out the form manually.
+                        La IA no pudo generar un reporte. Puedes volver e intentarlo de nuevo, o llenar el formulario manualmente.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -88,7 +88,7 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
                 <CardFooter className="flex justify-start">
                     <Button variant="outline" onClick={onBack}>
                         <ArrowLeft className="mr-2 h-4 w-4" />
-                        Back to Step 1
+                        Volver al Paso 1
                     </Button>
                 </CardFooter>
             </Card>
@@ -98,20 +98,20 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Step 2: Review & Submit</CardTitle>
+                <CardTitle>Paso 2: Revisar y Enviar</CardTitle>
                 <CardDescription>
-                    The AI has generated a draft of the incident report. Please review, make any necessary changes, and submit.
+                    La IA ha generado un borrador del reporte de incidencia. Por favor, revisa, haz los cambios necesarios y envíalo.
                 </CardDescription>
             </CardHeader>
             <CardContent>
                  <div className="grid gap-6 md:grid-cols-3 mb-6">
                     {incidentData.photoDataUri && (
                         <div className="md:col-span-1">
-                            <h4 className="font-medium mb-2 text-sm">Photo Evidence</h4>
+                            <h4 className="font-medium mb-2 text-sm">Evidencia en Foto</h4>
                             <div className="relative aspect-video w-full rounded-md overflow-hidden border">
                                 <Image
                                 src={incidentData.photoDataUri}
-                                alt="Incident evidence"
+                                alt="Evidencia de la incidencia"
                                 fill
                                 className="object-cover"
                                 />
@@ -120,7 +120,7 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
                     )}
                     {(incidentData.audioTranscription || incidentData.textDescription) && (
                         <div className="md:col-span-2">
-                             <h4 className="font-medium mb-2 text-sm">Provided Description</h4>
+                             <h4 className="font-medium mb-2 text-sm">Descripción Proporcionada</h4>
                             <div className="prose prose-sm dark:prose-invert max-w-none border rounded-md p-4 bg-muted max-h-48 overflow-y-auto">
                                 {incidentData.audioTranscription && !incidentData.textDescription && <blockquote>{incidentData.audioTranscription}</blockquote>}
                                 {incidentData.textDescription && <p>{incidentData.textDescription}</p>}
@@ -144,7 +144,7 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
             <CardFooter className="flex justify-start">
                 <Button variant="outline" onClick={onBack}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Step 1
+                    Volver al Paso 1
                 </Button>
             </CardFooter>
         </Card>

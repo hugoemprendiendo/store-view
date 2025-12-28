@@ -39,13 +39,13 @@ export default function IncidentDetails({ incident: initialIncident, branch }: I
         if (result.success && result.data) {
             setIncident(result.data);
             toast({
-                title: 'Status Updated',
-                description: `Incident status changed to "${selectedStatus}".`,
+                title: 'Estado Actualizado',
+                description: `El estado de la incidencia cambió a "${selectedStatus}".`,
             });
         } else {
             toast({
                 variant: 'destructive',
-                title: 'Update Failed',
+                title: 'Actualización Fallida',
                 description: result.error,
             });
             setSelectedStatus(incident.status); // Revert UI
@@ -81,13 +81,13 @@ export default function IncidentDetails({ incident: initialIncident, branch }: I
                         )}
                         {incident.description && (
                             <div className="prose dark:prose-invert max-w-none">
-                                <h3 className="font-semibold">Description</h3>
+                                <h3 className="font-semibold">Descripción</h3>
                                 <p>{incident.description}</p>
                             </div>
                         )}
                         {incident.audioTranscription && (
                             <div className="prose dark:prose-invert max-w-none mt-4">
-                                <h3 className="font-semibold">Audio Transcription</h3>
+                                <h3 className="font-semibold">Transcripción de Audio</h3>
                                 <blockquote className="border-l-2 pl-4 italic">{incident.audioTranscription}</blockquote>
                             </div>
                         )}
@@ -97,44 +97,44 @@ export default function IncidentDetails({ incident: initialIncident, branch }: I
             <div className="md:col-span-1 space-y-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Properties</CardTitle>
+                        <CardTitle>Propiedades</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                          <div className="flex items-center gap-3">
                             <Shield className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                            <Badge variant={priorityVariantMap[incident.priority]} className="text-sm">{incident.priority} Priority</Badge>
+                            <Badge variant={priorityVariantMap[incident.priority]} className="text-sm">Prioridad {incident.priority}</Badge>
                         </div>
                         <div className="flex items-center gap-3">
                             <Layers className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                            <span>Category: <span className="font-medium">{incident.category}</span></span>
+                            <span>Categoría: <span className="font-medium">{incident.category}</span></span>
                         </div>
                         <div className="flex items-center gap-3">
                             <Tag className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                            <span>Status: <span className="font-medium">{incident.status}</span></span>
+                            <span>Estado: <span className="font-medium">{incident.status}</span></span>
                         </div>
                         <div className="flex items-center gap-3">
                             <Calendar className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                            <span>Reported on {format(new Date(incident.createdAt), 'PPpp')}</span>
+                            <span>Reportado el {format(new Date(incident.createdAt), 'PPpp')}</span>
                         </div>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardHeader>
-                        <CardTitle>Update Status</CardTitle>
+                        <CardTitle>Actualizar Estado</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <Select value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as Incident['status'])} disabled={isUpdating}>
                             <SelectTrigger>
-                                <SelectValue placeholder="Change status" />
+                                <SelectValue placeholder="Cambiar estado" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="Open">Open</SelectItem>
-                                <SelectItem value="In Progress">In Progress</SelectItem>
-                                <SelectItem value="Resolved">Resolved</SelectItem>
+                                <SelectItem value="Open">Abierto</SelectItem>
+                                <SelectItem value="In Progress">En Progreso</SelectItem>
+                                <SelectItem value="Resolved">Resuelto</SelectItem>
                             </SelectContent>
                         </Select>
                         <Button onClick={handleStatusUpdate} disabled={isUpdating || selectedStatus === incident.status} className="w-full">
-                            {isUpdating ? 'Updating...' : 'Update Status'}
+                            {isUpdating ? 'Actualizando...' : 'Actualizar Estado'}
                         </Button>
                     </CardContent>
                 </Card>

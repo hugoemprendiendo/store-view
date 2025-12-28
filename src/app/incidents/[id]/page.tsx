@@ -16,7 +16,7 @@ export default async function IncidentDetailPage({ params }: { params: { id: str
 
   return (
     <div className="flex flex-col gap-4">
-      <Header title="Incident Details" />
+      <Header title="Detalles de la Incidencia" />
       <IncidentDetails incident={incident} branch={branch} />
     </div>
   );
