@@ -4,12 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, Cpu } from 'lucide-react';
+import { Loader2, ArrowLeft, Cpu, DollarSign } from 'lucide-react';
 import { getAIAnalysis } from '@/app/actions';
 import { IncidentReviewForm } from '@/components/incidents/incident-form';
 import type { IncidentData } from '@/app/incidents/new/page';
 import type { AnalyzeIncidentReportOutput } from '@/ai/flows/analyze-incident-report';
 import Image from 'next/image';
+import { calculateCost } from '@/lib/ai-pricing';
 
 interface IncidentFormStep2Props {
     incidentData: IncidentData;
@@ -20,6 +21,7 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
     const { toast } = useToast();
     const [analysisResult, setAnalysisResult] = useState<AnalyzeIncidentReportOutput | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(true);
+    const [estimatedCost, setEstimatedCost] = useState(0);
 
     useEffect(() => {
         const analyze = async () => {
@@ -33,6 +35,20 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
 
             if (result.success && result.data) {
                 setAnalysisResult(result.data);
+
+                // Calculate cost
+                const audioInputTokens = incidentData.audioTokens || 0;
+                const audioOutputTokens = 0; // Transcription doesn't have output tokens in the same way.
+
+                const analysisInputTokens = result.data.inputTokens || 0;
+                const analysisOutputTokens = result.data.outputTokens || 0;
+
+                const totalCost = calculateCost(
+                    audioInputTokens + analysisInputTokens,
+                    audioOutputTokens + analysisOutputTokens
+                );
+                setEstimatedCost(totalCost);
+
                 toast({
                     title: 'Análisis Completo',
                     description: 'Las sugerencias de la IA han sido aplicadas al formulario.',
@@ -43,7 +59,6 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
                     title: 'Análisis Fallido',
                     description: result.error || 'Ocurrió un error desconocido durante el análisis.',
                 });
-                // Optionally, allow user to proceed with manual entry or go back
             }
             setIsAnalyzing(false);
         };
@@ -150,16 +165,25 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Volver al Paso 1
                 </Button>
-                {totalTokens > 0 && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground border rounded-full px-3 py-1">
-                        <Cpu className="size-4" />
-                        <span>Consumo Total de IA:</span>
-                        <span className="font-semibold">{totalTokens} tokens</span>
-                        <span className="text-muted-foreground/50">
-                            (Audio: {audioTokens}, Análisis: {analysisTokens})
-                        </span>
-                    </div>
-                )}
+                <div className="space-y-2">
+                    {totalTokens > 0 && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground border rounded-full px-3 py-1">
+                            <Cpu className="size-4" />
+                            <span>Consumo Total de IA:</span>
+                            <span className="font-semibold">{totalTokens.toLocaleString()} tokens</span>
+                            <span className="text-muted-foreground/50">
+                                (Audio: {audioTokens.toLocaleString()}, Análisis: {analysisTokens.toLocaleString()})
+                            </span>
+                        </div>
+                    )}
+                    {estimatedCost > 0 && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground border rounded-full px-3 py-1">
+                            <DollarSign className="size-4" />
+                            <span>Costo Estimado:</span>
+                            <span className="font-semibold">${estimatedCost.toFixed(6)}</span>
+                        </div>
+                    )}
+                </div>
             </CardFooter>
         </Card>
     );
