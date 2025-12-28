@@ -16,6 +16,7 @@ import type { Branch, Incident } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { updateIncidentStatus } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 const priorityVariantMap = {
   Low: 'secondary',
@@ -27,6 +28,7 @@ export default function BranchDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const { toast } = useToast();
+  const router = useRouter();
 
   const [branch, setBranch] = useState<Branch | null>(null);
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -63,13 +65,13 @@ export default function BranchDetailPage() {
 
     const result = await updateIncidentStatus(incidentId, newStatus);
 
-    if (result.success && result.data) {
-      // Update with server response
-      setIncidents(prevIncidents => prevIncidents.map(i => i.id === incidentId ? result.data : i));
+    if (result.success) {
       toast({
         title: 'Estado Actualizado',
         description: `El estado de la incidencia cambió a "${newStatus}".`,
       });
+      // Force a router refresh to re-fetch server data
+      router.refresh();
     } else {
       // Revert on failure
       setIncidents(originalIncidents);
