@@ -154,7 +154,7 @@ export default function BranchesPage() {
       
       {selectedRegion !== 'all' && (
         <div className="fixed bottom-6 left-6 z-50">
-            <Button variant="destructive" onClick={handleClearFilters}>
+            <Button variant="outline" onClick={handleClearFilters}>
                 <X className="mr-2 h-4 w-4" />
                 Limpiar
             </Button>
