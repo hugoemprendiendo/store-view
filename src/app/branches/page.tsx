@@ -19,6 +19,8 @@ import { Eye, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useFirestore, useUser } from '@/firebase';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+
 
 export default function BranchesPage() {
   const firestore = useFirestore();
@@ -35,8 +37,13 @@ export default function BranchesPage() {
       
       let branchesData: Branch[];
       if (userProfile.role === 'superadmin') {
+        // Superadmin uses the existing `getBranches` which fetches all documents.
+        // The security rules allow this with `allow list`.
         branchesData = await getBranches(firestore);
       } else if (userProfile.assignedBranches && userProfile.assignedBranches.length > 0) {
+        // Regular users must fetch only the documents they have access to.
+        // We use `getBranchesByIds` which performs a `where in` query.
+        // Our rules allow this because `allow get` is checked for each document ID.
         branchesData = await getBranchesByIds(firestore, userProfile.assignedBranches);
       } else {
         branchesData = [];
