@@ -4,7 +4,7 @@ import { DashboardClient } from '@/components/dashboard/dashboard-client';
 import { useFirestore, useUser, useMemoFirebase, useCollection } from '@/firebase';
 import type { Branch, Incident } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useEffect, useState } from 'react';
 
