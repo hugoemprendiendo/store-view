@@ -28,7 +28,7 @@ service cloud.firestore {
       return isSignedIn() && 
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              'assignedBranches' in getUserData(request.auth.uid) &&
-             branchId in getUserData(request.auth.uid).assignedBranches;
+             getUserData(request.auth.uid).assignedBranches.hasAny([branchId]);
     }
 
     match /users/{userId} {
@@ -38,22 +38,20 @@ service cloud.firestore {
     }
 
     match /branches/{branchId} {
-      // Superadmins can list and get any branch.
-      // Regular users can only get a branch they are assigned to.
       allow list: if isSuperAdmin();
       allow get: if isSuperAdmin() || isAssignedToBranch(branchId);
-      allow write: if isSuperAdmin(); // Only superadmins can create/edit branches
+      allow write: if isSuperAdmin();
     }
 
     match /incidents/{incidentId} {
-      // To read or write an incident, you must have access to the branch it belongs to.
-      // The incident data is in `request.resource.data` for write, and `resource.data` for read.
       function getBranchIdForIncident() {
         return request.method == 'create' ? request.resource.data.branchId : resource.data.branchId;
       }
       
       allow get, write: if isSuperAdmin() || isAssignedToBranch(getBranchIdForIncident());
-      allow list: if isSuperAdmin();
+
+      // Allow a user to list incidents if they are assigned to the branch specified in the query
+      allow list: if isSuperAdmin() || (isSignedIn() && isAssignedToBranch(request.query.where.branchId.to_list()[0]));
     }
   }
 }
