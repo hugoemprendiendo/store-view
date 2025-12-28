@@ -44,7 +44,7 @@ export async function createIncident(data: Omit<Incident, 'id' | 'createdAt'>) {
         
         const incidentToCreate = {
             ...data,
-            photoUrl: data.photo, 
+            photoUrl: data.photoUrl, 
             photoHint: 'user uploaded',
             createdAt: new Date().toISOString(),
         };

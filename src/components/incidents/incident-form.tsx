@@ -23,7 +23,7 @@ const incidentSchema = z.object({
   title: z.string().min(3, 'El título debe tener al menos 3 caracteres.'),
   description: z.string().optional(),
   audioTranscription: z.string().optional(),
-  photo: z.string().optional(),
+  photoUrl: z.string().optional(),
   category: z.string().min(1, 'La categoría es obligatoria.'),
   priority: z.enum(IncidentPriorities),
   status: z.enum(IncidentStatuses).default('Abierto'),
@@ -55,7 +55,7 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
       status: 'Abierto',
       description: initialData.suggestedDescription || '',
       audioTranscription: initialData.audioTranscription || '',
-      photo: initialData.photoUrl,
+      photoUrl: initialData.photoUrl,
     },
   });
 
