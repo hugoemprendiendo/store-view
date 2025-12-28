@@ -14,6 +14,7 @@ import { Input } from '../ui/input';
 import { Search, AlertTriangle, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { cn } from '@/lib/utils';
+import { Label } from '../ui/label';
 
 interface DashboardClientProps {
   branches: Branch[];
@@ -34,16 +35,19 @@ function getBranchStatus(branchIncidents: Incident[]): 'error' | 'warning' | 'ok
 export function DashboardClient({ branches, incidents }: DashboardClientProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('all');
+  const [selectedRegion, setSelectedRegion] = useState('all');
 
   const brands = useMemo(() => ['all', ...Array.from(new Set(branches.map((b) => b.brand)))], [branches]);
+  const regions = useMemo(() => ['all', ...Array.from(new Set(branches.map((b) => b.region)))], [branches]);
 
   const filteredBranches = useMemo(() => {
     return branches.filter((branch) => {
       const brandMatch = selectedBrand === 'all' || branch.brand === selectedBrand;
+      const regionMatch = selectedRegion === 'all' || branch.region === selectedRegion;
       const searchMatch = branch.name.toLowerCase().includes(searchTerm.toLowerCase()) || branch.brand.toLowerCase().includes(searchTerm.toLowerCase());
-      return brandMatch && searchMatch;
+      return brandMatch && regionMatch && searchMatch;
     });
-  }, [branches, selectedBrand, searchTerm]);
+  }, [branches, selectedBrand, selectedRegion, searchTerm]);
 
   const { criticalCount, warningCount, operationalCount } = useMemo(() => {
     return branches.reduce(
@@ -107,18 +111,36 @@ export function DashboardClient({ branches, incidents }: DashboardClientProps) {
                     <CardTitle className="text-sm font-medium">Filtros</CardTitle>
                  </CardHeader>
                 <CardContent className="space-y-2">
-                    <Select value={selectedBrand} onValueChange={setSelectedBrand}>
-                    <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Filtrar por marca..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {brands.map((brand) => (
-                        <SelectItem key={brand} value={brand}>
-                            {brand === 'all' ? 'Todas las marcas' : brand}
-                        </SelectItem>
-                        ))}
-                    </SelectContent>
-                    </Select>
+                    <div className='space-y-1'>
+                        <Label htmlFor="brand-filter" className='text-xs'>Marca</Label>
+                        <Select value={selectedBrand} onValueChange={setSelectedBrand}>
+                        <SelectTrigger id="brand-filter" className="w-full h-8">
+                            <SelectValue placeholder="Filtrar por marca..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {brands.map((brand) => (
+                            <SelectItem key={brand} value={brand}>
+                                {brand === 'all' ? 'Todas las marcas' : brand}
+                            </SelectItem>
+                            ))}
+                        </SelectContent>
+                        </Select>
+                    </div>
+                     <div className='space-y-1'>
+                        <Label htmlFor="region-filter" className='text-xs'>Región</Label>
+                        <Select value={selectedRegion} onValueChange={setSelectedRegion}>
+                        <SelectTrigger id="region-filter" className="w-full h-8">
+                            <SelectValue placeholder="Filtrar por región..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {regions.map((region) => (
+                            <SelectItem key={region} value={region}>
+                                {region === 'all' ? 'Todas las regiones' : region}
+                            </SelectItem>
+                            ))}
+                        </SelectContent>
+                        </Select>
+                    </div>
                 </CardContent>
             </Card>
       </div>

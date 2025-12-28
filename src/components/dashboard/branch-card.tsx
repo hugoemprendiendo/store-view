@@ -40,7 +40,7 @@ export function BranchCard({ branch, incidents }: BranchCardProps) {
         <CardContent className="p-3 flex flex-col items-center justify-center text-center h-full">
             <Building2 className="size-8 mb-2" />
             <h3 className="font-semibold text-sm leading-tight font-headline">{branch.name}</h3>
-            <p className="text-xs text-current/70">{branch.brand}</p>
+            <p className="text-xs text-current/70">{branch.brand} - {branch.region}</p>
         </CardContent>
       </Card>
     </Link>
