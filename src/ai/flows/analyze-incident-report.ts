@@ -21,7 +21,8 @@ const AnalyzeIncidentReportInputSchema = z.object({
     ),
   audioTranscription: z.string().optional().describe('The transcribed text from the audio recording of the incident.'),
   textDescription: z.string().optional().describe('A text description of the incident.'),
-  incidentSettings: z.custom<IncidentSettings>().describe('The available settings for incidents.'),
+  availableCategories: z.array(z.string()).describe('The list of available incident categories.'),
+  availablePriorities: z.array(z.string()).describe('The list of available incident priorities.'),
 });
 export type AnalyzeIncidentReportInput = z.infer<typeof AnalyzeIncidentReportInputSchema>;
 
@@ -38,10 +39,20 @@ const AnalyzeIncidentReportOutputSchema = z.object({
 });
 export type AnalyzeIncidentReportOutput = z.infer<typeof AnalyzeIncidentReportOutputSchema>;
 
+// This is the external-facing function that components will call.
+// It now accepts the full incidentSettings object.
 export async function analyzeIncidentReport(
-  input: AnalyzeIncidentReportInput
+  input: AnalyzeIncidentReportInput & { incidentSettings: IncidentSettings }
 ): Promise<AnalyzeIncidentReportOutput> {
-  return analyzeIncidentReportFlow(input);
+  // Map the settings to the format the flow expects
+  const flowInput: AnalyzeIncidentReportInput = {
+    photoDataUri: input.photoDataUri,
+    audioTranscription: input.audioTranscription,
+    textDescription: input.textDescription,
+    availableCategories: input.incidentSettings.categories.map(c => c.name),
+    availablePriorities: input.incidentSettings.priorities.map(p => p.name),
+  };
+  return analyzeIncidentReportFlow(flowInput);
 }
 
 const analyzeIncidentReportPrompt = ai.definePrompt({
@@ -53,9 +64,16 @@ const analyzeIncidentReportPrompt = ai.definePrompt({
   Basado en la información proporcionada (foto, audio, texto), sugiere un título, categoría, prioridad, estado y una descripción detallada y estructurada para el reporte de incidencia. Todos los campos de salida DEBEN estar en español.
   La descripción debe resumir toda la evidencia proporcionada.
 
-  Al determinar la categoría, DEBES elegir uno de los siguientes valores: {{{JSON.stringify incidentSettings.categories.map(c => c.name)}}}.
+  Al determinar la categoría, DEBES elegir uno de los siguientes valores:
+  {{#each availableCategories}}
+  - {{{this}}}
+  {{/each}}
 
-  Al determinar la prioridad, usa la siguiente lógica y asegúrate de devolver solo uno de los valores {{{JSON.stringify incidentSettings.priorities.map(p => p.name)}}}:
+  Al determinar la prioridad, usa la siguiente lógica y asegúrate de devolver solo uno de los siguientes valores:
+  {{#each availablePriorities}}
+  - {{{this}}}
+  {{/each}}
+  
   - Prioridad 'High': Si la incidencia impide que la tienda opere.
   - Prioridad 'Medium': Si la tienda puede operar, pero con problemas o de forma limitada.
   - Prioridad 'Low': Si la incidencia no afecta la operación principal de la tienda.

@@ -3,9 +3,16 @@
 import { analyzeIncidentReport, AnalyzeIncidentReportInput } from '@/ai/flows/analyze-incident-report';
 import { transcribeAudio as aiTranscribeAudio, TranscribeAudioInput, TranscribeAudioOutput } from '@/ai/flows/transcribe-audio';
 import { revalidatePath } from 'next/cache';
+import type { IncidentSettings } from '@/lib/types';
 
-export async function getAIAnalysis(input: AnalyzeIncidentReportInput) {
+// The input type for the server action remains the same from the client's perspective
+export type GetAIAnalysisInput = Omit<AnalyzeIncidentReportInput, 'availableCategories' | 'availablePriorities'> & {
+    incidentSettings: IncidentSettings;
+};
+
+export async function getAIAnalysis(input: GetAIAnalysisInput) {
   try {
+    // The analyzeIncidentReport flow now handles the mapping internally.
     const result = await analyzeIncidentReport(input);
     return { success: true, data: result };
   } catch (error) {

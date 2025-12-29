@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, Cpu, DollarSign, Info } from 'lucide-react';
-import { getAIAnalysis, revalidateIncidentPaths } from '@/app/actions';
+import { getAIAnalysis } from '@/app/actions';
 import { IncidentReviewForm } from '@/components/incidents/incident-form';
 import type { IncidentData } from '@/app/incidents/new/page';
 import type { AnalyzeIncidentReportOutput } from '@/ai/flows/analyze-incident-report';
