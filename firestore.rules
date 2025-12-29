@@ -8,6 +8,7 @@ service cloud.firestore {
     }
 
     function getUserData(userId) {
+      // This is now safe because /users/{userId} has `allow get: if isOwner(userId)`.
       return get(/databases/$(database)/documents/users/$(userId)).data;
     }
 

@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { X, Plus, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { useFirestore, FirestorePermissionError } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const priorityTextMap: Record<string, string> = {
@@ -50,7 +50,8 @@ export default function SettingsPage() {
       setIsLoading(true);
       const settingsRef = doc(firestore, 'app_settings', 'incident_config');
 
-      getDoc(settingsRef).then(settingsSnap => {
+      try {
+        const settingsSnap = await getDoc(settingsRef);
         if (settingsSnap.exists()) {
           setSettings(settingsSnap.data() as IncidentSettings);
         } else {
@@ -60,16 +61,16 @@ export default function SettingsPage() {
             description: 'El documento de configuración de la aplicación no existe.',
           });
         }
-        setIsLoading(false);
-      }).catch(error => {
-          // Create and emit the detailed error for debugging
-          const permissionError = new FirestorePermissionError({
-            path: settingsRef.path,
-            operation: 'get',
+      } catch (error) {
+         toast({
+            variant: 'destructive',
+            title: 'Error de Permisos',
+            description: 'No tienes permiso para ver la configuración.',
           });
-          // Throw the error to be caught by the Next.js overlay
-          throw permissionError;
-      });
+          console.error("Error fetching settings:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
     
     loadData();
