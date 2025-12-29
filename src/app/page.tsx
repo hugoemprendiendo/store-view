@@ -34,7 +34,6 @@ export default function DashboardPage() {
   // Data fetching for REGULAR USERS
   useEffect(() => {
     async function fetchUserData() {
-      // This effect should only run for regular users
       if (isProfileLoading || !firestore || !userProfile || userProfile.role === 'superadmin') {
         if (!isProfileLoading) {
             setIsLoadingData(false);
@@ -46,19 +45,15 @@ export default function DashboardPage() {
       try {
         const branchIds = Object.keys(userProfile.assignedBranches || {});
         if (branchIds.length > 0) {
-          // 1. Fetch assigned branches
           const branchesData = await getBranchesByIds(firestore, branchIds);
           setLocalBranches(branchesData);
           
-          // 2. Securely fetch incidents ONLY for those branches using an 'in' query.
-          // This is allowed by the security rules.
           const incidentsRef = collection(firestore, 'incidents');
           const incidentsForUserQuery = query(incidentsRef, where('branchId', 'in', branchIds));
           const incidentsSnapshot = await getDocs(incidentsForUserQuery);
           const incidentsData = incidentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
           setLocalIncidents(incidentsData);
         } else {
-          // User has no assigned branches
           setLocalBranches([]);
           setLocalIncidents([]);
         }
@@ -74,7 +69,6 @@ export default function DashboardPage() {
     fetchUserData();
   }, [firestore, userProfile, isProfileLoading]);
 
-  // Determine final data based on user role
   const isSuperAdmin = userProfile?.role === 'superadmin';
   const branches = isSuperAdmin ? adminBranches || [] : localBranches;
   const incidents = isSuperAdmin ? adminIncidents || [] : localIncidents;
