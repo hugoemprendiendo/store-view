@@ -44,7 +44,12 @@ export default function SettingsPage() {
       }
 
       // If loading is finished and there's no profile, or the role is not superadmin, redirect.
-      if (!userProfile || userProfile.role !== 'superadmin') {
+      if (!userProfile) {
+        router.push('/');
+        return;
+      }
+      
+      if (userProfile.role !== 'superadmin') {
         router.push('/');
         setIsLoading(false); // Stop loading and finish.
         return;
@@ -57,16 +62,19 @@ export default function SettingsPage() {
         if (settingsSnap.exists()) {
           setSettings(settingsSnap.data() as IncidentSettings);
         } else {
-           console.warn('Settings document not found. A superadmin should be able to create it.');
+           toast({
+            variant: 'destructive',
+            title: 'Faltan Ajustes',
+            description: 'El documento de configuración de incidencias no se encuentra. Un superadmin puede guardarlo para crearlo.',
+          });
         }
       } catch (error) {
         console.error("Error fetching settings:", error);
-        // Create and throw the detailed error for debugging
-        const permissionError = new FirestorePermissionError({
-          path: settingsRef.path,
-          operation: 'get',
+        toast({
+            variant: 'destructive',
+            title: 'Error al Cargar',
+            description: 'No se pudieron cargar los ajustes. Verifica los permisos.',
         });
-        throw permissionError;
       } finally {
         setIsLoading(false); // Ensure loading is always stopped.
       }
@@ -129,7 +137,7 @@ export default function SettingsPage() {
     handleSaveCategories(newCategories);
   };
   
-  if (isLoading) {
+  if (isLoading || isProfileLoading) {
     return (
       <div className="flex flex-col gap-6">
         <Header title="Configuración" />
