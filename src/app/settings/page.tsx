@@ -36,12 +36,13 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const loadData = async () => {
-      // 1. Wait for auth and firestore to be ready.
+      // 1. Wait until auth status is determined and firestore is available.
       if (isProfileLoading || !firestore) {
-        return; // Still loading dependencies, do nothing.
+        setIsLoading(true);
+        return; 
       }
 
-      // 2. Once ready, check the user's role.
+      // 2. Once auth is resolved, check the user's role.
       if (!userProfile || userProfile.role !== 'superadmin') {
         setIsLoading(false);
         router.push('/');
@@ -54,11 +55,8 @@ export default function SettingsPage() {
         if (settingsSnap.exists()) {
           setSettings(settingsSnap.data() as IncidentSettings);
         } else {
-           toast({
-            variant: 'destructive',
-            title: 'Configuración no encontrada',
-            description: 'El documento de configuración de la aplicación no existe.',
-          });
+           // This case should ideally not happen if seeding is correct, but good to handle.
+           console.warn('Settings document not found. A superadmin should be able to create it.');
         }
         setIsLoading(false);
       }).catch(error => {
@@ -72,7 +70,7 @@ export default function SettingsPage() {
     };
     
     loadData();
-  }, [isProfileLoading, userProfile, firestore, router, toast]);
+  }, [isProfileLoading, userProfile, firestore, router]);
 
   const handleSaveCategories = async (newCategories: string[]) => {
     if (!firestore || !settings) return;
