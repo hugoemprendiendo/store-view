@@ -6,7 +6,7 @@ import type { Branch, Incident } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useEffect, useState } from 'react';
-import { getBranchesByIds, getBranches, getIncidents } from '@/lib/data';
+import { getBranchesByIds, getBranches, getIncidents, getIncidentsForUser } from '@/lib/data';
 
 export default function DashboardPage() {
   const firestore = useFirestore();
@@ -42,11 +42,9 @@ export default function DashboardPage() {
         } else if (userProfile.assignedBranches) {
           const branchIds = Object.keys(userProfile.assignedBranches);
           if (branchIds.length > 0) {
+             // For non-superadmin, fetch branches and then their incidents safely.
              branchesData = await getBranchesByIds(firestore, branchIds);
-             // For non-superadmin, we cannot fetch all incidents at once due to security rules.
-             // We will pass an empty array, and the DashboardClient will handle it.
-             // The status will be calculated based on the incidents it receives.
-             incidentsData = [];
+             incidentsData = await getIncidentsForUser(firestore, branchIds);
           }
         }
         setBranches(branchesData);

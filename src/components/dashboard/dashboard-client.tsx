@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import type { Branch, Incident, IncidentStatus } from '@/lib/types';
+import type { Branch, Incident } from '@/lib/types';
 import {
   Select,
   SelectContent,
@@ -10,8 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { BranchCard } from './branch-card';
-import { Input } from '../ui/input';
-import { Search, AlertTriangle, ShieldCheck, ShieldAlert, Building } from 'lucide-react';
+import { AlertTriangle, ShieldCheck, ShieldAlert, Building } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { cn } from '@/lib/utils';
 import { Label } from '../ui/label';
@@ -37,7 +36,6 @@ function getBranchStatus(branchIncidents: Incident[]): 'error' | 'warning' | 'ok
 }
 
 export function DashboardClient({ branches, incidents }: DashboardClientProps) {
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('all');
   const [selectedRegion, setSelectedRegion] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('all');
@@ -45,32 +43,32 @@ export function DashboardClient({ branches, incidents }: DashboardClientProps) {
   const brands = useMemo(() => ['all', ...Array.from(new Set(branches.map((b) => b.brand)))], [branches]);
   const regions = useMemo(() => ['all', ...Array.from(new Set(branches.map((b) => b.region)))], [branches]);
 
-  const branchesWithStatus = useMemo(() => {
+  const branchesWithIncidents = useMemo(() => {
     return branches.map(branch => {
         const branchIncidents = incidents.filter(i => i.branchId === branch.id);
         return {
-            ...branch,
+            branch,
+            incidents: branchIncidents,
             status: getBranchStatus(branchIncidents)
         };
     });
   }, [branches, incidents]);
 
   const filteredBranches = useMemo(() => {
-    return branchesWithStatus.filter((branch) => {
+    return branchesWithIncidents.filter(({ branch, status }) => {
       const brandMatch = selectedBrand === 'all' || branch.brand === selectedBrand;
       const regionMatch = selectedRegion === 'all' || branch.region === selectedRegion;
-      const searchMatch = branch.name.toLowerCase().includes(searchTerm.toLowerCase()) || branch.brand.toLowerCase().includes(searchTerm.toLowerCase());
-      const statusMatch = selectedStatus === 'all' || branch.status === selectedStatus;
-      return brandMatch && regionMatch && searchMatch && statusMatch;
+      const statusMatch = selectedStatus === 'all' || status === selectedStatus;
+      return brandMatch && regionMatch && statusMatch;
     });
-  }, [branchesWithStatus, selectedBrand, selectedRegion, searchTerm, selectedStatus]);
+  }, [branchesWithIncidents, selectedBrand, selectedRegion, selectedStatus]);
 
   const { criticalCount, warningCount, operationalCount } = useMemo(() => {
-    return branchesWithStatus.reduce(
-      (acc, branch) => {
-        if (branch.status === 'error') {
+    return branchesWithIncidents.reduce(
+      (acc, { status }) => {
+        if (status === 'error') {
           acc.criticalCount++;
-        } else if (branch.status === 'warning') {
+        } else if (status === 'warning') {
           acc.warningCount++;
         } else {
           acc.operationalCount++;
@@ -79,7 +77,7 @@ export function DashboardClient({ branches, incidents }: DashboardClientProps) {
       },
       { criticalCount: 0, warningCount: 0, operationalCount: 0 }
     );
-  }, [branchesWithStatus]);
+  }, [branchesWithIncidents]);
 
   const handleStatusSelect = (status: StatusFilter) => {
     setSelectedStatus(prevStatus => prevStatus === status ? 'all' : status);
@@ -89,7 +87,6 @@ export function DashboardClient({ branches, incidents }: DashboardClientProps) {
     setSelectedStatus('all');
     setSelectedBrand('all');
     setSelectedRegion('all');
-    setSearchTerm('');
   };
 
   return (
@@ -196,9 +193,8 @@ export function DashboardClient({ branches, incidents }: DashboardClientProps) {
         <CardContent>
             {filteredBranches.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10">
-                {filteredBranches.map((branch) => {
-                    const branchIncidents = incidents.filter((i) => i.branchId === branch.id);
-                    return <BranchCard key={branch.id} branch={branch} incidents={branchIncidents} />;
+                {filteredBranches.map(({ branch, incidents }) => {
+                    return <BranchCard key={branch.id} branch={branch} incidents={incidents} />;
                 })}
                 </div>
             ) : (
