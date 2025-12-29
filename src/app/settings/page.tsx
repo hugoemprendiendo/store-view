@@ -40,7 +40,13 @@ export default function SettingsPage() {
       }
 
       // 2. Auth is ready. Check if user is logged in and is a superadmin.
-      if (!userProfile || userProfile.role !== 'superadmin') {
+      if (!userProfile) {
+          router.push('/');
+          setIsLoading(false);
+          return;
+      }
+      
+      if (userProfile.role !== 'superadmin') {
         // If not, redirect and stop loading.
         router.push('/');
         setIsLoading(false);
@@ -61,8 +67,6 @@ export default function SettingsPage() {
           });
         }
       } catch (error: any) {
-         // This catch block will now correctly handle permission errors
-         // because the rules are simple and the logic is sequential.
          console.error("Error fetching settings:", error);
          toast({
             variant: 'destructive',

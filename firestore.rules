@@ -8,14 +8,15 @@ service cloud.firestore {
     }
 
     function getUserData(userId) {
-      // This is now safe because /users/{userId} has `allow get: if isOwner(userId)`.
+      // This is now safe because /users/{userId} allows a user to read their own doc.
       return get(/databases/$(database)/documents/users/$(userId)).data;
     }
 
     function isSuperAdmin() {
       // This function relies on the user having read access to their own document.
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
-          && getUserData(request.auth.uid).role == 'superadmin';
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             getUserData(request.auth.uid).role == 'superadmin';
     }
     
     function isOwner(userId) {
@@ -37,10 +38,11 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // A user can create their own profile. For now, this also allows signup.
+      // A user can create their own profile.
       allow create: if isOwner(userId);
       // A user MUST be able to read their own document for isSuperAdmin() to work.
-      allow get: if isOwner(userId);
+      // A superadmin can also read any user's document.
+      allow get: if isOwner(userId) || isSuperAdmin();
       // Listing and updating is restricted to superadmins.
       allow list, update: if isSuperAdmin();
     }
@@ -77,7 +79,7 @@ service cloud.firestore {
      match /app_settings/{settingId} {
         // Any signed-in user can read the settings (needed for forms), 
         // but only superadmins can write them.
-        allow read: if isSignedIn();
+        allow get, list: if isSignedIn();
         allow write: if isSuperAdmin();
      }
   }
