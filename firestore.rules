@@ -7,85 +7,62 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function getUserData(userId) {
-      // This is now safe because /users/{userId} allows a user to read their own doc.
-      return get(/databases/$(database)/documents/users/$(userId)).data;
-    }
-
-    function isSuperAdmin() {
-      // This function relies on the user having read access to their own document.
-      return isSignedIn() && 
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-             getUserData(request.auth.uid).role == 'superadmin';
-    }
-    
     function isOwner(userId) {
         return request.auth.uid == userId;
     }
 
-    // A user is assigned to a branch if they are a superadmin or if the branchId
-    // is in their assignedBranches map.
-    function isAssignedToBranch(branchId) {
-      if (isSuperAdmin()) {
-        return true;
-      }
-      
-      let userDocData = getUserData(request.auth.uid);
-      // Ensure the user document has been loaded and the necessary fields exist
-      return isSignedIn() && 
-             'assignedBranches' in userDocData && 
-             branchId in userDocData.assignedBranches;
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
+    function isSuperAdmin() {
+      return isSignedIn() && getUserData().role == 'superadmin';
+    }
+    
+    function isAssignedToBranch(branchId) {
+        let userDocData = getUserData();
+        return isSuperAdmin() || (
+            isSignedIn() &&
+            'assignedBranches' in userDocData &&
+            branchId in userDocData.assignedBranches
+        );
+    }
+    
     match /users/{userId} {
-      // A user can create their own profile.
       allow create: if isOwner(userId);
-      // A user MUST be able to read their own document for isSuperAdmin() to work.
-      // A superadmin can also read any user's document.
       allow get: if isOwner(userId) || isSuperAdmin();
-      // Listing and updating is restricted to superadmins.
       allow list, update: if isSuperAdmin();
+      allow delete: if false; // Nobody can delete user profiles
     }
 
     match /branches/{branchId} {
-      // Superadmins can list all branches.
-      allow list: if isSuperAdmin();
-      // Users can only get branches they are assigned to.
       allow get: if isAssignedToBranch(branchId);
-      // Only superadmins can create, update, or delete branches.
-      allow write: if isSuperAdmin();
+      allow list: if isSuperAdmin();
+      allow create, update, delete: if isSuperAdmin();
     }
 
     match /incidents/{incidentId} {
-      // Helper function to get the branchId from the resource (for existing docs)
-      // or from the request (for new docs).
-      function getBranchIdForIncident() {
+      function getIncidentBranchId() {
         return request.method == 'create' ? request.resource.data.branchId : resource.data.branchId;
       }
-
-      // Users can get or write to an incident if they are assigned to that incident's branch.
-      allow get, write: if isAssignedToBranch(getBranchIdForIncident());
-
-      // Superadmins can list all incidents.
-      // Regular users can only list incidents if they filter by a specific branchId,
-      // and they must be assigned to that branch.
+      
+      allow get, write: if isAssignedToBranch(getIncidentBranchId());
+      
       allow list: if isSuperAdmin() || (
         isSignedIn() &&
         'branchId' in request.query.where &&
         isAssignedToBranch(request.query.where.branchId)
       );
     }
-
-     match /app_settings/{settingId} {
-        // Any signed-in user can read the settings (needed for forms), 
-        // but only superadmins can write them.
-        allow get, list: if isSignedIn();
+    
+    match /app_settings/{settingId} {
+        allow get: if isSignedIn();
         allow write: if isSuperAdmin();
-     }
-
-     // Rule for the new test collection
-     match /test_docs/{docId} {
+    }
+    
+    // Rule for the test collection
+    match /test_docs/{docId} {
         allow read, write: if true;
-     }
+    }
   }
 }
