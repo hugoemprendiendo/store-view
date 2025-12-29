@@ -55,26 +55,33 @@ export default function IncidentsPage() {
         let incidentsData: Incident[] = [];
 
         if (userProfile.role === 'superadmin') {
-          branchesData = await getBranches(firestore);
+          // 1. Superadmin: fetch all branches and all incidents
+          const [allBranches, allIncidents] = await Promise.all([
+            getBranches(firestore),
+            getDocs(collection(firestore, 'incidents'))
+          ]);
+          branchesData = allBranches;
+          incidentsData = allIncidents.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
+
         } else if (userProfile.assignedBranches && Object.keys(userProfile.assignedBranches).length > 0) {
+          // 2. Normal user: fetch assigned branches, then their incidents
           const branchIds = Object.keys(userProfile.assignedBranches);
           branchesData = await getBranchesByIds(firestore, branchIds);
-        }
-        setUserBranches(branchesData);
-
-        const accessibleBranchIds = branchesData.map(b => b.id);
-
-        if (accessibleBranchIds.length > 0) {
-          const chunks: string[][] = [];
-          for (let i = 0; i < accessibleBranchIds.length; i += 30) {
-              chunks.push(accessibleBranchIds.slice(i, i + 30));
+          
+          if (branchIds.length > 0) {
+              const chunks: string[][] = [];
+              for (let i = 0; i < branchIds.length; i += 30) {
+                  chunks.push(branchIds.slice(i, i + 30));
+              }
+              const incidentPromises = chunks.map(chunk => 
+                  getDocs(query(collection(firestore, 'incidents'), where('branchId', 'in', chunk)))
+              );
+              const incidentsSnapshots = await Promise.all(incidentPromises);
+              incidentsData = incidentsSnapshots.flatMap(snap => snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident)));
           }
-          const incidentPromises = chunks.map(chunk => 
-              getDocs(query(collection(firestore, 'incidents'), where('branchId', 'in', chunk)))
-          );
-          const incidentsSnapshots = await Promise.all(incidentPromises);
-          incidentsData = incidentsSnapshots.flatMap(snap => snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident)));
         }
+        
+        setUserBranches(branchesData);
         setIncidents(incidentsData);
         
       } catch (error) {
