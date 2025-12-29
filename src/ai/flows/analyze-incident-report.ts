@@ -50,7 +50,7 @@ const analyzeIncidentReportPrompt = ai.definePrompt({
   output: {schema: AnalyzeIncidentReportOutputSchema},
   prompt: `Eres un asistente de IA que analiza reportes de incidencias y sugiere mejoras.
 
-  Basado en la información proporcionada, sugiere un título, categoría, prioridad, estado y una descripción detallada y estructurada para el reporte de incidencia. Todos los campos de salida DEBEN estar en español.
+  Basado en la información proporcionada (foto, audio, texto), sugiere un título, categoría, prioridad, estado y una descripción detallada y estructurada para el reporte de incidencia. Todos los campos de salida DEBEN estar en español.
   La descripción debe resumir toda la evidencia proporcionada.
 
   Al determinar la categoría, DEBES elegir uno de los siguientes valores: {{{JSON.stringify incidentSettings.categories}}}.
@@ -65,6 +65,10 @@ const analyzeIncidentReportPrompt = ai.definePrompt({
   Responde en formato JSON.
 
   Considera la siguiente información al hacer tus sugerencias:
+
+  {{#if photoDataUri}}
+  Foto de la evidencia: {{media url=photoDataUri}}
+  {{/if}}
 
   {{#if audioTranscription}}
   Transcripción de Audio: {{{audioTranscription}}}

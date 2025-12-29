@@ -44,6 +44,7 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
             setIncidentSettings(settings);
 
             const result = await getAIAnalysis({
+                photoDataUri: incidentData.photoDataUri,
                 audioTranscription: incidentData.audioTranscription,
                 textDescription: incidentData.textDescription,
                 incidentSettings: settings,
