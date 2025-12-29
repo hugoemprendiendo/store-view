@@ -14,7 +14,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useFirestore } from '@/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { FirestorePermissionError } from '@/firebase/errors';
 
 const priorityTextMap: Record<string, string> = {
     Low: 'Baja',
@@ -34,6 +33,7 @@ export default function SettingsPage() {
   const router = useRouter();
 
   useEffect(() => {
+    // This effect handles both redirection and data fetching in a sequential, safe manner.
     const loadData = async () => {
       // 1. Wait for auth and firestore to be ready.
       if (isProfileLoading || !firestore) {
@@ -48,10 +48,9 @@ export default function SettingsPage() {
       }
       
       // 3. Only if the user is a superadmin, proceed to fetch settings.
-      setIsLoading(true);
-      const settingsRef = doc(firestore, 'app_settings', 'incident_config');
-      
-      getDoc(settingsRef).then(settingsSnap => {
+      try {
+        const settingsRef = doc(firestore, 'app_settings', 'incident_config');
+        const settingsSnap = await getDoc(settingsRef);
         if (settingsSnap.exists()) {
           setSettings(settingsSnap.data() as IncidentSettings);
         } else {
@@ -61,16 +60,16 @@ export default function SettingsPage() {
             description: 'El documento de configuración de la aplicación no existe.',
           });
         }
+      } catch (error) {
+         toast({
+          variant: 'destructive',
+          title: 'Error al Cargar',
+          description: 'No se pudo cargar la configuración de la aplicación.',
+        });
+        console.error("Error fetching settings:", error);
+      } finally {
         setIsLoading(false);
-      }).catch(error => {
-          // Create and emit the detailed error for debugging
-          const permissionError = new FirestorePermissionError({
-            path: settingsRef.path,
-            operation: 'get',
-          });
-          // This will be caught by the Next.js error overlay
-          throw permissionError;
-      });
+      }
     };
     
     loadData();
