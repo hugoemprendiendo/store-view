@@ -21,6 +21,7 @@ export default function DashboardPage() {
         return;
       }
       
+      // Once profile loading is finished, if there's no profile, we can stop.
       if (!userProfile) {
         setBranches([]);
         setIncidents([]);
