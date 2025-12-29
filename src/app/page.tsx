@@ -34,7 +34,7 @@ export default function DashboardPage() {
   // One-time data fetching for REGULAR USERS
   useEffect(() => {
     async function fetchUserData() {
-      // Exit if still loading, no firestore, no user profile, or if user is a superadmin (handled by hooks)
+      // Exit if still loading, no firestore, no user profile, or if user is a superadmin (handled by real-time hooks)
       if (isProfileLoading || !firestore || !userProfile || userProfile.role === 'superadmin') {
         if (!isProfileLoading) {
             setIsLoadingData(false);
@@ -60,6 +60,7 @@ export default function DashboardPage() {
         }
       } catch (e) {
         console.error("Error fetching dashboard data for user: ", e);
+        // Set to empty arrays on error to prevent crashes and show an empty state.
         setLocalBranches([]);
         setLocalIncidents([]);
       } finally {
