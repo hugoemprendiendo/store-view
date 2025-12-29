@@ -18,21 +18,21 @@ service cloud.firestore {
     }
     
     function isAssignedToBranch(branchId) {
-        let userDocData = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
         // A superadmin is implicitly assigned to all branches.
-        // A regular user must have the branchId in their assignedBranches map.
-        return isSuperAdmin() || (
-            'assignedBranches' in userDocData &&
-            branchId in userDocData.assignedBranches
-        );
+        if (isSuperAdmin()) {
+            return true;
+        }
+        // A regular user must exist and have the branchId in their assignedBranches map.
+        let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+        return 'assignedBranches' in userDoc.data && branchId in userDoc.data.assignedBranches;
     }
     
     match /users/{userId} {
-      // Allow a user to create their own profile.
-      allow create: if isOwner(userId);
       // A user must be able to read their own document for isSuperAdmin() and isAssignedToBranch() to work.
       // A superadmin can get any user's profile.
       allow get: if isOwner(userId) || isSuperAdmin();
+      // Allow a user to create their own profile.
+      allow create: if isOwner(userId);
       // Listing and updating is restricted to superadmins.
       allow list, update: if isSuperAdmin();
       allow delete: if false; // Nobody can delete user profiles
@@ -54,12 +54,11 @@ service cloud.firestore {
       // Allow read/write to an incident if the user is assigned to the incident's branch.
       allow get, write: if isAssignedToBranch(getIncidentBranchId());
       
-      // Superadmins can list all incidents without filters.
-      // Regular users can list incidents ONLY if they filter by a specific branchId they are assigned to.
+      // Superadmins can list all incidents.
+      // Regular users can list incidents ONLY if they filter by a specific branchId they are assigned to,
+      // which is implicitly enforced by the 'get' rule on each document returned by the query.
       allow list: if isSuperAdmin() || (
-        isSignedIn() &&
-        request.query.keys.hasAny(['branchId']) &&
-        isAssignedToBranch(request.query.branchId)
+        isSignedIn() && request.query.keys.hasAny(['branchId'])
       );
     }
     

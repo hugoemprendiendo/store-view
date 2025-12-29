@@ -48,31 +48,34 @@ export default function IncidentsPage() {
       let branchesData: Branch[] = [];
 
       try {
+        const accessibleBranchIds = userProfile.role === 'superadmin' 
+            ? null // Superadmin can access all, so we don't need to pre-filter by ID.
+            : Object.keys(userProfile.assignedBranches || {});
+
         if (userProfile.role === 'superadmin') {
+          // Superadmin: Fetch all incidents and all branches
           const incidentsSnapshot = await getDocs(collection(firestore, 'incidents'));
           incidentsData = incidentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
-        } else if (userProfile.assignedBranches) {
-          const branchIds = Object.keys(userProfile.assignedBranches);
-          if (branchIds.length > 0) {
-            // Firestore 'in' query is limited to 30 elements. Chunking is required for > 30.
-            const chunks = [];
-            for (let i = 0; i < branchIds.length; i += 30) {
-                chunks.push(branchIds.slice(i, i + 30));
-            }
-            const incidentPromises = chunks.map(chunk => 
-                getDocs(query(collection(firestore, 'incidents'), where('branchId', 'in', chunk)))
-            );
-            const incidentsSnapshots = await Promise.all(incidentPromises);
-            incidentsData = incidentsSnapshots.flatMap(snap => snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident)));
+          
+          const branchIdsFromIncidents = [...new Set(incidentsData.map(inc => inc.branchId))];
+          if(branchIdsFromIncidents.length > 0) {
+            branchesData = await getBranchesByIds(firestore, branchIdsFromIncidents);
           }
-        }
 
-        const branchIdsWithAccess = userProfile.role === 'superadmin' 
-            ? [...new Set(incidentsData.map(inc => inc.branchId))]
-            : Object.keys(userProfile.assignedBranches || {});
-        
-        if (branchIdsWithAccess.length > 0) {
-            branchesData = await getBranchesByIds(firestore, branchIdsWithAccess);
+        } else if (accessibleBranchIds && accessibleBranchIds.length > 0) {
+          // Regular user: Fetch assigned branches, then fetch incidents for those branches.
+          branchesData = await getBranchesByIds(firestore, accessibleBranchIds);
+
+          // Firestore 'in' query is limited to 30 elements. Chunking is required for > 30.
+          const chunks = [];
+          for (let i = 0; i < accessibleBranchIds.length; i += 30) {
+              chunks.push(accessibleBranchIds.slice(i, i + 30));
+          }
+          const incidentPromises = chunks.map(chunk => 
+              getDocs(query(collection(firestore, 'incidents'), where('branchId', 'in', chunk)))
+          );
+          const incidentsSnapshots = await Promise.all(incidentPromises);
+          incidentsData = incidentsSnapshots.flatMap(snap => snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident)));
         }
 
         setIncidents(incidentsData);
@@ -99,7 +102,7 @@ export default function IncidentsPage() {
   const filteredIncidents = useMemo(() => {
     return incidents.filter(i => {
       const branch = branchMap[i.branchId];
-      if (!branch) return false;
+      if (!branch) return userProfile?.role === 'superadmin'; // Superadmin might see incidents for branches they don't have loaded yet
       return (
         (filterCategory === 'all' || i.category === filterCategory) &&
         (filterStatus === 'all' || i.status === filterStatus) &&
@@ -109,7 +112,7 @@ export default function IncidentsPage() {
         (filterBranchId === 'all' || i.branchId === filterBranchId)
       );
     });
-  }, [incidents, filterCategory, filterStatus, filterPriority, filterRegion, filterBrand, filterBranchId, branchMap]);
+  }, [incidents, filterCategory, filterStatus, filterPriority, filterRegion, filterBrand, filterBranchId, branchMap, userProfile?.role]);
 
   const availableOptions = useMemo(() => {
     const branchesInFilteredIncidents = new Map<string, Branch>();
