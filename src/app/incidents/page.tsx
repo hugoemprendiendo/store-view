@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import type { Branch, Incident } from '@/lib/types';
-import { getBranchesByIds, getBranches } from '@/lib/data';
+import { getBranchesByIds, getBranches, getIncidentsForUser } from '@/lib/data';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -14,7 +14,6 @@ import { useFirestore } from '@/firebase';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const priorityVariantMap = {
   Low: 'secondary',
@@ -26,8 +25,8 @@ export default function IncidentsPage() {
   const firestore = useFirestore();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
 
-  const [incidents, setIncidents] = useState<Incident[] | null>(null);
-  const [allUserBranches, setAllUserBranches] = useState<Branch[] | null>(null);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [allUserBranches, setAllUserBranches] = useState<Branch[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Filters
@@ -46,8 +45,8 @@ export default function IncidentsPage() {
       setIsLoadingData(true);
       
       if (!userProfile) {
-          setAllUserBranches(null);
-          setIncidents(null);
+          setAllUserBranches([]);
+          setIncidents([]);
           setIsLoadingData(false);
           return;
       }
@@ -64,9 +63,7 @@ export default function IncidentsPage() {
 
         if (branches.length > 0) {
             const branchIds = branches.map(b => b.id);
-            const incidentsQuery = query(collection(firestore, 'incidents'), where('branchId', 'in', branchIds));
-            const incidentsSnapshot = await getDocs(incidentsQuery);
-            const incidentsData = incidentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
+            const incidentsData = await getIncidentsForUser(firestore, branchIds);
             setIncidents(incidentsData);
         } else {
             setIncidents([]);

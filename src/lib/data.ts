@@ -111,21 +111,19 @@ export async function getIncidentsForUser(firestore: Firestore, branchIds: strin
     return [];
   }
 
-  // Firestore 'in' queries are limited to 30 items.
-  // We chunk the branchIds to handle more than 30.
-  const chunks: string[][] = [];
-  for (let i = 0; i < branchIds.length; i += 30) {
-      chunks.push(branchIds.slice(i, i + 30));
-  }
-
-  const incidentPromises = chunks.map(chunk => {
+  // Firestore 'in' queries are limited to 30 items, but more importantly,
+  // our security rules block 'list' operations for non-superadmins.
+  // Instead, we run multiple queries in parallel, one for each branch,
+  // which is allowed by the 'get' rule on individual documents.
+  const incidentPromises = branchIds.map(branchId => {
       const incidentsRef = collection(firestore, 'incidents');
-      const q = query(incidentsRef, where('branchId', 'in', chunk));
+      const q = query(incidentsRef, where('branchId', '==', branchId));
       return getDocs(q);
   });
 
   const querySnapshots = await Promise.all(incidentPromises);
   
+  // Flatten the results from all the queries into a single array.
   const allIncidents = querySnapshots.flatMap(snapshot => 
       snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident))
   );
