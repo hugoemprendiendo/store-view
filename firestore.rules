@@ -12,19 +12,27 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
     
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userDocExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
     function isSuperAdmin() {
-      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
-          && userDoc.data.role == 'superadmin';
+      return isSignedIn() && userDocExists() && getUserDoc().data.role == 'superadmin';
     }
     
     function isAssignedToBranch(branchId) {
-        if (isSuperAdmin()) {
-            return true;
-        }
-        let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
-        return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-            && 'assignedBranches' in userDoc.data && branchId in userDoc.data.assignedBranches;
+      if (isSuperAdmin()) {
+        return true;
+      }
+      if (!isSignedIn() || !userDocExists()) {
+        return false;
+      }
+      let userDoc = getUserDoc();
+      return 'assignedBranches' in userDoc.data && userDoc.data.assignedBranches[branchId] == true;
     }
     
     match /users/{userId} {
@@ -35,6 +43,7 @@ service cloud.firestore {
     }
 
     match /branches/{branchId} {
+      // A user assigned to a branch can get it. Superadmins can list all.
       allow get: if isAssignedToBranch(branchId);
       allow list: if isSuperAdmin();
       allow create, update, delete: if isSuperAdmin();
@@ -45,8 +54,13 @@ service cloud.firestore {
         return request.method == 'create' ? request.resource.data.branchId : resource.data.branchId;
       }
       
+      // Allow get/write if the user is assigned to the incident's branch.
+      // `get` allows fetching single documents, which Firestore uses to check each document
+      // returned by a 'list' query.
       allow get, write: if isAssignedToBranch(getIncidentBranchId());
       
+      // Allow 'list' (queries) to proceed if the user is signed in.
+      // The `get` rule above will then secure each document returned by the query.
       allow list: if isSignedIn();
     }
     
