@@ -20,7 +20,9 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchData() {
       if (!firestore || !userProfile) {
-        setIsLoadingData(false);
+        if (!isProfileLoading) {
+            setIsLoadingData(false);
+        }
         return;
       }
 
@@ -73,7 +75,7 @@ export default function DashboardPage() {
     }
   }, [firestore, userProfile, isProfileLoading]);
 
-  const isLoading = isProfileLoading || isLoadingData || !user;
+  const isLoading = isProfileLoading || isLoadingData;
 
   if (isLoading) {
     return (
