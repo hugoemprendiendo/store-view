@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import type { Branch, Incident } from '@/lib/types';
-import { getBranchesByIds, getBranches, getIncidentsByBranch } from '@/lib/data';
+import { getBranchesByIds, getBranches, getIncidentsForUser, getIncidentsByBranch } from '@/lib/data';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -37,9 +37,9 @@ export default function IncidentsPage() {
   const [filterBrand, setFilterBrand] = useState('all');
   const [filterBranchId, setFilterBranchId] = useState('all');
   
-  // Initial data load for branches
+  // Initial data load
   useEffect(() => {
-    async function fetchBranches() {
+    async function fetchInitialData() {
       if (isProfileLoading || !firestore || !userProfile) {
         if (!isProfileLoading) setIsLoadingData(false);
         return;
@@ -55,21 +55,29 @@ export default function IncidentsPage() {
           : await getBranchesByIds(firestore, accessibleBranchIds || []);
         
         setAllUserBranches(branches);
+
+        // **CRUCIAL CHANGE**: If user is NOT a superadmin, fetch their incidents right away.
+        if (!isSuperAdmin && accessibleBranchIds && accessibleBranchIds.length > 0) {
+            const userIncidents = await getIncidentsForUser(firestore, accessibleBranchIds);
+            setIncidents(userIncidents);
+        }
+
       } catch (error) {
-        console.error("Error fetching branches for incidents page:", error);
+        console.error("Error fetching initial data for incidents page:", error);
         setAllUserBranches([]);
+        setIncidents([]);
       } finally {
         setIsLoadingData(false);
       }
     }
-    fetchBranches();
+    fetchInitialData();
   }, [firestore, userProfile, isProfileLoading]);
 
-  // Effect to fetch incidents when a specific branch is selected
+  // Effect to fetch incidents when a specific branch is selected (for SUPERADMIN)
   useEffect(() => {
       async function fetchIncidentsForBranch() {
           if (!firestore || filterBranchId === 'all') {
-              setIncidents([]);
+              if (userProfile?.role === 'superadmin') setIncidents([]);
               return;
           }
           setIsLoadingData(true);
@@ -84,15 +92,11 @@ export default function IncidentsPage() {
           }
       }
       
-      // For superadmin, if no branch is selected, show nothing.
-      // For regular user, if no branch is selected, show nothing.
-      if (userProfile?.role === 'superadmin' && filterBranchId === 'all') {
-          setIncidents([]);
-          return;
+      // This effect should now only run for superadmins when they change the filter
+      if (userProfile?.role === 'superadmin') {
+          fetchIncidentsForBranch();
       }
-      
-      fetchIncidentsForBranch();
-  }, [filterBranchId, firestore, userProfile]);
+  }, [filterBranchId, firestore, userProfile?.role]);
 
 
   // --- Filtering Logic ---
@@ -105,7 +109,12 @@ export default function IncidentsPage() {
   }, [allUserBranches]);
 
   const filteredIncidents = useMemo(() => {
-    return incidents.filter(i => {
+    // For non-superadmin, filterBranchId is not used to fetch data, but can be used to filter the already fetched incidents.
+    const incidentsToFilter = userProfile?.role === 'superadmin' 
+        ? incidents 
+        : incidents.filter(i => filterBranchId === 'all' || i.branchId === filterBranchId);
+
+    return incidentsToFilter.filter(i => {
       const branch = branchMap[i.branchId];
       if (!branch) return false;
       return (
@@ -116,14 +125,15 @@ export default function IncidentsPage() {
         (filterBrand === 'all' || branch.brand === filterBrand)
       );
     });
-  }, [incidents, filterCategory, filterStatus, filterPriority, filterRegion, filterBrand, branchMap]);
+  }, [incidents, filterCategory, filterStatus, filterPriority, filterRegion, filterBrand, filterBranchId, branchMap, userProfile?.role]);
 
   const availableOptions = useMemo(() => {
     const branchesInFilter = allUserBranches;
-
-    const uniqueCategories = ['all', ...Array.from(new Set(incidents.map(i => i.category).filter(Boolean)))];
-    const uniqueStatuses = ['all', ...Array.from(new Set(incidents.map(i => i.status).filter(Boolean)))];
-    const uniquePriorities = ['all', ...Array.from(new Set(incidents.map(i => i.priority).filter(Boolean)))];
+    const incidentsForOptions = userProfile?.role === 'superadmin' ? incidents : (incidents || []);
+    
+    const uniqueCategories = ['all', ...Array.from(new Set(incidentsForOptions.map(i => i.category).filter(Boolean)))];
+    const uniqueStatuses = ['all', ...Array.from(new Set(incidentsForOptions.map(i => i.status).filter(Boolean)))];
+    const uniquePriorities = ['all', ...Array.from(new Set(incidentsForOptions.map(i => i.priority).filter(Boolean)))];
     const uniqueRegions = ['all', ...Array.from(new Set(branchesInFilter.map(b => b.region).filter(Boolean)))];
     const uniqueBrands = ['all', ...Array.from(new Set(branchesInFilter.map(b => b.brand).filter(Boolean)))];
   
@@ -135,7 +145,7 @@ export default function IncidentsPage() {
       brands: uniqueBrands,
       branches: ['all', ...branchesInFilter],
     };
-  }, [incidents, allUserBranches]);
+  }, [incidents, allUserBranches, userProfile?.role]);
   
   const sortedAndFilteredIncidents = useMemo(() => {
     return filteredIncidents.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -143,7 +153,7 @@ export default function IncidentsPage() {
 
   const totalLoading = isProfileLoading || isLoadingData;
 
-  const showIncidentsTable = filterBranchId !== 'all';
+  const showIncidentsTable = userProfile?.role !== 'superadmin' || filterBranchId !== 'all';
 
   return (
     <div className="flex flex-col gap-6">
@@ -154,11 +164,11 @@ export default function IncidentsPage() {
           <CardDescription>
             {userProfile?.role === 'superadmin' 
               ? "Usa los filtros para encontrar incidencias específicas. Debes seleccionar una tienda para ver sus incidencias."
-              : "Selecciona una de tus sucursales para ver las incidencias reportadas."
+              : "Tus incidencias se muestran a continuación. Usa los filtros para refinar los resultados."
             }
           </CardDescription>
            <div className="grid gap-4 pt-4 md:grid-cols-2 lg:grid-cols-3">
-              <Select value={filterRegion} onValueChange={v => { setFilterRegion(v); setFilterBranchId('all'); }}>
+              <Select value={filterRegion} onValueChange={v => { setFilterRegion(v); if(userProfile?.role === 'superadmin') setFilterBranchId('all'); }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Filtrar por región" />
                 </SelectTrigger>
@@ -168,7 +178,7 @@ export default function IncidentsPage() {
                   ))}
                 </SelectContent>
               </Select>
-               <Select value={filterBrand} onValueChange={v => { setFilterBrand(v); setFilterBranchId('all'); }}>
+               <Select value={filterBrand} onValueChange={v => { setFilterBrand(v); if(userProfile?.role === 'superadmin') setFilterBranchId('all'); }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Filtrar por marca" />
                 </SelectTrigger>
@@ -180,11 +190,11 @@ export default function IncidentsPage() {
               </Select>
               <Select value={filterBranchId} onValueChange={setFilterBranchId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecciona una tienda" />
+                  <SelectValue placeholder={userProfile?.role === 'superadmin' ? 'Selecciona una tienda' : 'Filtrar por tienda'} />
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="all">
-                        {userProfile?.role === 'superadmin' ? 'Ver todas las tiendas' : 'Selecciona una tienda'}
+                        {userProfile?.role === 'superadmin' ? 'Selecciona una tienda para ver' : 'Todas mis tiendas'}
                     </SelectItem>
                     {availableOptions.branches.filter(b => b !== 'all').map(branch => {
                         const b = branch as Branch;
@@ -197,40 +207,37 @@ export default function IncidentsPage() {
                     })}
                 </SelectContent>
               </Select>
-              {showIncidentsTable && (
-                  <>
-                    <Select value={filterCategory} onValueChange={setFilterCategory}>
-                        <SelectTrigger>
-                        <SelectValue placeholder="Filtrar por categoría" />
-                        </SelectTrigger>
-                        <SelectContent>
-                        {availableOptions.categories.map(cat => (
-                            <SelectItem key={cat as string} value={cat as string}>{cat === 'all' ? 'Todas las Categorías' : cat}</SelectItem>
-                        ))}
-                        </SelectContent>
-                    </Select>
-                    <Select value={filterStatus} onValueChange={setFilterStatus}>
-                        <SelectTrigger>
-                        <SelectValue placeholder="Filtrar por estado" />
-                        </SelectTrigger>
-                        <SelectContent>
-                        {availableOptions.statuses.map(stat => (
-                            <SelectItem key={stat as string} value={stat as string}>{stat === 'all' ? 'Todos los Estados' : stat}</SelectItem>
-                        ))}
-                        </SelectContent>
-                    </Select>
-                    <Select value={filterPriority} onValueChange={setFilterPriority}>
-                        <SelectTrigger>
-                        <SelectValue placeholder="Filtrar por prioridad" />
-                        </SelectTrigger>
-                        <SelectContent>
-                        {availableOptions.priorities.map(prio => (
-                            <SelectItem key={prio as string} value={prio as string}>{prio === 'all' ? 'Todas las Prioridades' : (prio === 'High' ? 'Alta' : prio === 'Medium' ? 'Media' : 'Baja')}</SelectItem>
-                        ))}
-                        </SelectContent>
-                    </Select>
-                  </>
-              )}
+              
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                  <SelectTrigger>
+                  <SelectValue placeholder="Filtrar por categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                  {availableOptions.categories.map(cat => (
+                      <SelectItem key={cat as string} value={cat as string}>{cat === 'all' ? 'Todas las Categorías' : cat}</SelectItem>
+                  ))}
+                  </SelectContent>
+              </Select>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger>
+                  <SelectValue placeholder="Filtrar por estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                  {availableOptions.statuses.map(stat => (
+                      <SelectItem key={stat as string} value={stat as string}>{stat === 'all' ? 'Todos los Estados' : stat}</SelectItem>
+                  ))}
+                  </SelectContent>
+              </Select>
+              <Select value={filterPriority} onValueChange={setFilterPriority}>
+                  <SelectTrigger>
+                  <SelectValue placeholder="Filtrar por prioridad" />
+                  </SelectTrigger>
+                  <SelectContent>
+                  {availableOptions.priorities.map(prio => (
+                      <SelectItem key={prio as string} value={prio as string}>{prio === 'all' ? 'Todas las Prioridades' : (prio === 'High' ? 'Alta' : prio === 'Medium' ? 'Media' : 'Baja')}</SelectItem>
+                  ))}
+                  </SelectContent>
+              </Select>
           </div>
         </CardHeader>
         <CardContent>
@@ -275,7 +282,7 @@ export default function IncidentsPage() {
                     )) : (
                     <TableRow>
                         <TableCell colSpan={7} className="h-24 text-center">
-                        No se encontraron incidencias con los filtros actuales para esta tienda.
+                        No se encontraron incidencias con los filtros actuales.
                         </TableCell>
                     </TableRow>
                     )}
@@ -283,7 +290,7 @@ export default function IncidentsPage() {
                 </Table>
             ) : (
                 <div className="text-center py-16 text-muted-foreground">
-                    <p>Por favor, selecciona una región, marca y tienda para ver las incidencias.</p>
+                    <p>Por favor, selecciona una tienda para ver las incidencias.</p>
                 </div>
             )}
         </CardContent>
