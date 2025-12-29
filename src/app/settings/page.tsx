@@ -14,6 +14,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useFirestore } from '@/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { FirestorePermissionError } from '@/firebase/errors';
+
 
 const priorityTextMap: Record<string, string> = {
     Low: 'Baja',
@@ -47,10 +49,8 @@ export default function SettingsPage() {
       }
       
       // 3. Only if the user is a superadmin, proceed to fetch settings.
-      try {
-        const settingsRef = doc(firestore, 'app_settings', 'incident_config');
-        const settingsSnap = await getDoc(settingsRef);
-        
+      const settingsRef = doc(firestore, 'app_settings', 'incident_config');
+      getDoc(settingsRef).then(settingsSnap => {
         if (settingsSnap.exists()) {
           setSettings(settingsSnap.data() as IncidentSettings);
         } else {
@@ -60,16 +60,15 @@ export default function SettingsPage() {
             description: 'El documento de configuración de la aplicación no existe.',
           });
         }
-      } catch (error) {
-        console.error("Error fetching settings:", error);
-        toast({
-          variant: 'destructive',
-          title: 'Error de Permisos',
-          description: 'No se pudo cargar la configuración. Por favor, revisa las reglas de seguridad.',
-        });
-      } finally {
         setIsLoading(false);
-      }
+      }).catch(error => {
+          // Create and throw the detailed error for debugging
+          const permissionError = new FirestorePermissionError({
+            path: settingsRef.path,
+            operation: 'get',
+          });
+          throw permissionError;
+      });
     };
     
     loadData();
