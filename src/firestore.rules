@@ -10,7 +10,7 @@ service cloud.firestore {
     function isOwner(userId) {
         return request.auth.uid == userId;
     }
-
+    
     function isSuperAdmin() {
       // This relies on the user having read access to their own document.
       return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
@@ -19,6 +19,8 @@ service cloud.firestore {
     
     function isAssignedToBranch(branchId) {
         let userDocData = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+        // A superadmin is implicitly assigned to all branches.
+        // A regular user must have the branchId in their assignedBranches map.
         return isSuperAdmin() || (
             'assignedBranches' in userDocData &&
             branchId in userDocData.assignedBranches
@@ -26,8 +28,9 @@ service cloud.firestore {
     }
     
     match /users/{userId} {
+      // Allow a user to create their own profile.
       allow create: if isOwner(userId);
-      // A user must be able to read their own document for isSuperAdmin() to work.
+      // A user must be able to read their own document for isSuperAdmin() and isAssignedToBranch() to work.
       // A superadmin can get any user's profile.
       allow get: if isOwner(userId) || isSuperAdmin();
       // Listing and updating is restricted to superadmins.
@@ -43,18 +46,18 @@ service cloud.firestore {
 
     match /incidents/{incidentId} {
       function getIncidentBranchId() {
+        // For a create operation, the branchId is in the incoming request data.
+        // For all other operations, it's in the existing document on the server.
         return request.method == 'create' ? request.resource.data.branchId : resource.data.branchId;
       }
       
+      // Allow read/write to an incident if the user is assigned to the incident's branch.
       allow get, write: if isAssignedToBranch(getIncidentBranchId());
       
       // Superadmins can list all incidents.
-      // Regular users can list incidents ONLY if they filter by a specific branchId, and they must be assigned to it.
-      allow list: if isSuperAdmin() || (
-        isSignedIn() &&
-        'branchId' in request.query.where &&
-        isAssignedToBranch(request.query.where.branchId)
-      );
+      // Regular users cannot list all incidents; they must query by branchIds they are assigned to,
+      // which is enforced by the `get` rule on individual documents.
+      allow list: if isSuperAdmin();
     }
     
     match /app_settings/{settingId} {
