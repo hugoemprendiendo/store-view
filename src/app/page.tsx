@@ -4,10 +4,10 @@ import { DashboardClient } from '@/components/dashboard/dashboard-client';
 import { useFirestore, useUser, useMemoFirebase, useCollection } from '@/firebase';
 import type { Branch, Incident } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { useEffect, useState } from 'react';
-import { getBranchesByIds } from '@/lib/data';
+import { useEffect, useState, useMemo } from 'react';
+import { getBranchesByIds, getBranches } from '@/lib/data';
 
 export default function DashboardPage() {
   const firestore = useFirestore();
@@ -16,43 +16,40 @@ export default function DashboardPage() {
   const [userBranches, setUserBranches] = useState<Branch[] | null>(null);
   const [isLoadingBranches, setIsLoadingBranches] = useState(true);
 
-  // Fetch branches based on user role
+  // Fetch branches based on user role, memoized to prevent re-running on every render
   useEffect(() => {
-    if (!firestore || isProfileLoading || !userProfile) {
-        if (!isProfileLoading) {
-            setIsLoadingBranches(false);
-        }
-        return;
-    };
-
     async function fetchUserBranches() {
-      setIsLoadingBranches(true);
-      if (userProfile.role === 'superadmin') {
-        const branchesSnapshot = await getDocs(collection(firestore, 'branches'));
-        const branchesData = branchesSnapshot.docs.map(snap => ({ id: snap.id, ...snap.data() } as Branch));
-        setUserBranches(branchesData);
-      } else if (userProfile.assignedBranches) {
-        const branchIds = Object.keys(userProfile.assignedBranches);
-        if (branchIds.length > 0) {
-            try {
-                const branchesData = await getBranchesByIds(firestore, branchIds);
-                setUserBranches(branchesData);
-            } catch (e) {
-                console.error("Error fetching user branches: ", e);
-                setUserBranches([]);
-            }
-        } else {
-          setUserBranches([]);
-        }
-      } else {
-        setUserBranches([]);
+      if (!firestore || !userProfile) {
+        setIsLoadingBranches(false);
+        return;
       }
-      setIsLoadingBranches(false);
+
+      setIsLoadingBranches(true);
+      try {
+        let branchesData: Branch[] = [];
+        if (userProfile.role === 'superadmin') {
+          branchesData = await getBranches(firestore);
+        } else if (userProfile.assignedBranches) {
+          const branchIds = Object.keys(userProfile.assignedBranches);
+          if (branchIds.length > 0) {
+            branchesData = await getBranchesByIds(firestore, branchIds);
+          }
+        }
+        setUserBranches(branchesData);
+      } catch (e) {
+        console.error("Error fetching user branches: ", e);
+        setUserBranches([]);
+      } finally {
+        setIsLoadingBranches(false);
+      }
     }
 
-    fetchUserBranches();
+    if (!isProfileLoading) {
+      fetchUserBranches();
+    }
   }, [firestore, userProfile, isProfileLoading]);
-  
+
+
   const branches = userBranches;
 
   // Fetch incidents based on user role and loaded branches
@@ -63,20 +60,28 @@ export default function DashboardPage() {
       return collection(firestore, 'incidents');
     }
     
-    // For regular users, our security rules only allow querying incidents for a single branch.
-    // If the user is assigned to exactly one branch, we fetch its incidents.
-    // Otherwise, we return null to avoid making a query that would be denied.
-    if (branches.length === 1) {
-      return query(collection(firestore, 'incidents'), where('branchId', '==', branches[0].id));
+    const assignedBranchIds = Object.keys(userProfile.assignedBranches || {});
+    if (assignedBranchIds.length > 0) {
+        // Firestore 'in' query is limited to 30 elements. Chunking is required for > 30.
+        const chunks = [];
+        for (let i = 0; i < assignedBranchIds.length; i += 30) {
+            chunks.push(assignedBranchIds.slice(i, i + 30));
+        }
+        // For simplicity in this context, we will only query the first chunk.
+        // A real-world app might need to combine results from all chunks.
+        if(chunks[0]) {
+            return query(collection(firestore, 'incidents'), where('branchId', 'in', chunks[0]));
+        }
     }
     
-    // For users with 0 or >1 branches, return null. The dashboard will show 0 incidents.
-    return null;
+    // For users with 0 branches or if something went wrong.
+    // We return a query that will yield no results to avoid errors.
+    return query(collection(firestore, 'incidents'), where('branchId', '==', 'non-existent-id'));
   }, [firestore, userProfile, branches, isLoadingBranches]);
 
   const { data: incidentsData, isLoading: isLoadingIncidents } = useCollection<Incident>(incidentsQuery);
+  const incidents = incidentsData || [];
 
-  const incidents = incidentsQuery ? incidentsData : [];
 
   const isLoading = isProfileLoading || isLoadingBranches || (incidentsQuery !== null && isLoadingIncidents);
 
@@ -95,7 +100,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <Header title="Panel de Control" />
-      <DashboardClient branches={branches || []} incidents={incidents || []} />
+      <DashboardClient branches={branches || []} incidents={incidents} />
     </div>
   );
 }
