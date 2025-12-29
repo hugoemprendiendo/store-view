@@ -31,9 +31,11 @@ export default function DashboardPage() {
       // If auth is loaded but there's no profile, the user is likely new or logged out.
       // We can stop loading and show an empty state.
       if (!userProfile) {
-        setUserBranches([]);
-        setIncidents([]);
-        setIsLoadingData(false);
+        if (!signal.aborted) {
+            setUserBranches([]);
+            setIncidents([]);
+            setIsLoadingData(false);
+        }
         return;
       }
 
@@ -81,10 +83,11 @@ export default function DashboardPage() {
         setIncidents(incidentsData);
 
       } catch (e) {
-        if (signal.aborted) return;
-        console.error("Error fetching dashboard data: ", e);
-        setUserBranches([]);
-        setIncidents([]);
+        if (!signal.aborted) {
+            console.error("Error fetching dashboard data: ", e);
+            setUserBranches([]);
+            setIncidents([]);
+        }
       } finally {
         if (!signal.aborted) {
           setIsLoadingData(false);
