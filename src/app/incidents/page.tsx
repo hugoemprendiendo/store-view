@@ -37,6 +37,9 @@ export default function IncidentsPage() {
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
+  const [filterRegion, setFilterRegion] = useState('all');
+  const [filterBrand, setFilterBrand] = useState('all');
+  const [filterBranchId, setFilterBranchId] = useState('all');
 
   useEffect(() => {
     async function fetchData() {
@@ -61,9 +64,19 @@ export default function IncidentsPage() {
           }
         }
 
-        const branchIds = [...new Set(incidentsData.map(inc => inc.branchId))];
-        if (branchIds.length > 0) {
-            branchesData = await getBranchesByIds(firestore, branchIds);
+        const branchIdsWithIncidents = [...new Set(incidentsData.map(inc => inc.branchId))];
+        let userBranchIds: string[] = [];
+
+        if (userProfile.role === 'superadmin') {
+            const allBranchesSnapshot = await getDocs(collection(firestore, 'branches'));
+            branchesData = allBranchesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Branch));
+        } else if (userProfile.assignedBranches) {
+            userBranchIds = Object.keys(userProfile.assignedBranches);
+            if (userBranchIds.length > 0) {
+                branchesData = await getBranchesByIds(firestore, userBranchIds);
+            }
+        } else if (branchIdsWithIncidents.length > 0) {
+             branchesData = await getBranchesByIds(firestore, branchIdsWithIncidents);
         }
 
         setIncidents(incidentsData);
@@ -87,13 +100,25 @@ export default function IncidentsPage() {
     }, {} as Record<string, Branch>);
   }, [branches]);
 
+  const regions = useMemo(() => ['all', ...Array.from(new Set(branches.map(b => b.region)))], [branches]);
+  const brands = useMemo(() => ['all', ...Array.from(new Set(branches.map(b => b.brand)))], [branches]);
+  
   const filteredIncidents = useMemo(() => {
     return incidents
-        .filter(i => filterCategory === 'all' || i.category === filterCategory)
-        .filter(i => filterStatus === 'all' || i.status === filterStatus)
-        .filter(i => filterPriority === 'all' || i.priority === filterPriority)
+        .filter(i => {
+            const branch = branchMap[i.branchId];
+            if (!branch) return false;
+            return (
+              (filterCategory === 'all' || i.category === filterCategory) &&
+              (filterStatus === 'all' || i.status === filterStatus) &&
+              (filterPriority === 'all' || i.priority === filterPriority) &&
+              (filterRegion === 'all' || branch.region === filterRegion) &&
+              (filterBrand === 'all' || branch.brand === filterBrand) &&
+              (filterBranchId === 'all' || i.branchId === filterBranchId)
+            );
+        })
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [incidents, filterCategory, filterStatus, filterPriority]);
+  }, [incidents, filterCategory, filterStatus, filterPriority, filterRegion, filterBrand, filterBranchId, branchMap]);
 
   const totalLoading = isLoading || isUserLoading || isProfileLoading;
 
@@ -116,7 +141,40 @@ export default function IncidentsPage() {
           <CardTitle>Filtrar Incidencias</CardTitle>
           <CardDescription>Usa los filtros para encontrar incidencias específicas.</CardDescription>
            <div className="grid gap-4 pt-4 md:grid-cols-2 lg:grid-cols-3">
-              <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <Select value={filterRegion} onValueChange={setFilterRegion}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filtrar por región" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las Regiones</SelectItem>
+                  {regions.filter(r => r !== 'all').map(reg => (
+                    <SelectItem key={reg} value={reg}>{reg}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+               <Select value={filterBrand} onValueChange={setFilterBrand}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filtrar por marca" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las Marcas</SelectItem>
+                  {brands.filter(b => b !== 'all').map(brand => (
+                    <SelectItem key={brand} value={brand}>{brand}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filterBranchId} onValueChange={setFilterBranchId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filtrar por tienda" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las Tiendas</SelectItem>
+                  {branches.map(branch => (
+                    <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+               <Select value={filterCategory} onValueChange={setFilterCategory}>
                 <SelectTrigger>
                   <SelectValue placeholder="Filtrar por categoría" />
                 </SelectTrigger>
