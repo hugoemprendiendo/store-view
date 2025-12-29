@@ -79,7 +79,6 @@ export default function UsersPage() {
     setUsers(currentUsers => 
         currentUsers.map(u => u.id === updatedUser.id ? updatedUser : u)
     );
-    router.refresh();
   };
 
   if (totalLoading || userProfile?.role !== 'superadmin') {
