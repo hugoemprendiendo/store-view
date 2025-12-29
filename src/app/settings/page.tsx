@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { X, Plus, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { useFirestore, FirestorePermissionError } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const priorityTextMap: Record<string, string> = {
@@ -41,14 +41,16 @@ export default function SettingsPage() {
 
       // 2. Once ready, check the user's role.
       if (!userProfile || userProfile.role !== 'superadmin') {
-        router.push('/');
         setIsLoading(false);
+        router.push('/');
         return; // Redirect if not a superadmin.
       }
       
       // 3. Only if the user is a superadmin, proceed to fetch settings.
-      const settingsRef = doc(firestore, 'app_settings', 'incident_config');
-      getDoc(settingsRef).then(settingsSnap => {
+      try {
+        const settingsRef = doc(firestore, 'app_settings', 'incident_config');
+        const settingsSnap = await getDoc(settingsRef);
+        
         if (settingsSnap.exists()) {
           setSettings(settingsSnap.data() as IncidentSettings);
         } else {
@@ -58,15 +60,16 @@ export default function SettingsPage() {
             description: 'El documento de configuración de la aplicación no existe.',
           });
         }
+      } catch (error) {
+        console.error("Error fetching settings:", error);
+        toast({
+          variant: 'destructive',
+          title: 'Error de Permisos',
+          description: 'No se pudo cargar la configuración. Por favor, revisa las reglas de seguridad.',
+        });
+      } finally {
         setIsLoading(false);
-      }).catch(error => {
-          // Create and throw the detailed error for debugging
-          const permissionError = new FirestorePermissionError({
-            path: settingsRef.path,
-            operation: 'get',
-          });
-          throw permissionError;
-      });
+      }
     };
     
     loadData();
