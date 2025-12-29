@@ -10,7 +10,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from '@/components/ui/sidebar';
-import { Building2, LayoutGrid, Settings, Store, LogOut, Users } from 'lucide-react';
+import { Building2, LayoutGrid, Settings, Store, LogOut, Users, List } from 'lucide-react';
 import { useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -20,6 +20,7 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 const links = [
   { href: '/', label: 'Panel de Control', icon: LayoutGrid },
   { href: '/branches', label: 'Sucursales', icon: Building2 },
+  { href: '/incidents', label: 'Incidencias', icon: List },
 ];
 
 const adminLinks = [
@@ -68,7 +69,7 @@ export function SidebarNav() {
             <SidebarMenuItem key={link.href}>
               <Link href={link.href}>
                 <SidebarMenuButton
-                  isActive={pathname === link.href}
+                  isActive={pathname.startsWith(link.href) && (link.href === '/' ? pathname === '/' : true) }
                   tooltip={link.label}
                 >
                   <link.icon />
