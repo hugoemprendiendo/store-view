@@ -24,7 +24,7 @@ type StatusFilter = 'error' | 'warning' | 'ok' | 'all';
 
 function getBranchStatus(branchIncidents: Incident[]): 'error' | 'warning' | 'ok' {
     // If we have no incident data for a branch (e.g., for regular users on the dashboard), default to 'ok'
-    if (!branchIncidents || branchIncidents.length === 0) {
+    if (branchIncidents.length === 0) {
       return 'ok';
     }
     const hasOpen = branchIncidents.some((i) => i.status === 'Abierto');
@@ -48,12 +48,10 @@ export function DashboardClient({ branches, incidents }: DashboardClientProps) {
   const regions = useMemo(() => ['all', ...Array.from(new Set(branches.map((b) => b.region)))], [branches]);
 
   const branchesWithStatus = useMemo(() => {
-    // Always map over all branches a user can see.
     return branches.map(branch => {
         const branchIncidents = incidents.filter(i => i.branchId === branch.id);
         return {
             branch,
-            incidents: branchIncidents,
             status: getBranchStatus(branchIncidents)
         };
     });
@@ -69,7 +67,6 @@ export function DashboardClient({ branches, incidents }: DashboardClientProps) {
   }, [branchesWithStatus, selectedBrand, selectedRegion, selectedStatus]);
 
   const { criticalCount, warningCount, operationalCount } = useMemo(() => {
-    // Calculate counts based on all visible branches with their status
     return branchesWithStatus.reduce(
       (acc, { status }) => {
         if (status === 'error') {
@@ -199,8 +196,11 @@ export function DashboardClient({ branches, incidents }: DashboardClientProps) {
         <CardContent>
             {filteredBranches.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10">
-                {filteredBranches.map(({ branch, incidents }) => {
-                    return <BranchCard key={branch.id} branch={branch} incidents={incidents} />;
+                {filteredBranches.map(({ branch }) => {
+                    // We can no longer reliably pass incidents here for regular users,
+                    // so we pass an empty array to BranchCard. The card will determine status.
+                    const branchIncidents = incidents.filter(i => i.branchId === branch.id);
+                    return <BranchCard key={branch.id} branch={branch} incidents={branchIncidents} />;
                 })}
                 </div>
             ) : (

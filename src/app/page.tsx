@@ -13,65 +13,60 @@ export default function DashboardPage() {
   const firestore = useFirestore();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
 
-  // State for non-admin users' data
-  const [localBranches, setLocalBranches] = useState<Branch[]>([]);
-  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [userBranches, setUserBranches] = useState<Branch[]>([]);
+  const [isLoadingUserData, setIsLoadingUserData] = useState(true);
 
-  // Real-time queries ONLY for SUPERADMIN
-  const branchesQuery = useMemoFirebase(() => {
+  // Real-time queries for SUPERADMIN
+  const adminBranchesQuery = useMemoFirebase(() => {
     if (!firestore || userProfile?.role !== 'superadmin') return null;
     return collection(firestore, 'branches');
   }, [firestore, userProfile?.role]);
 
-  const incidentsQuery = useMemoFirebase(() => {
+  const adminIncidentsQuery = useMemoFirebase(() => {
     if (!firestore || userProfile?.role !== 'superadmin') return null;
     return collection(firestore, 'incidents');
   }, [firestore, userProfile?.role]);
 
-  const { data: adminBranches, isLoading: isAdminBranchesLoading } = useCollection<Branch>(branchesQuery);
-  const { data: adminIncidents, isLoading: isAdminIncidentsLoading } = useCollection<Incident>(incidentsQuery);
-
-  // One-time data fetching for REGULAR USERS
+  const { data: adminBranches, isLoading: isAdminBranchesLoading } = useCollection<Branch>(adminBranchesQuery);
+  const { data: adminIncidents, isLoading: isAdminIncidentsLoading } = useCollection<Incident>(adminIncidentsQuery);
+  
+  // One-time fetch for REGULAR USERS' branches
   useEffect(() => {
-    async function fetchUserData() {
-      // Exit if still loading, no firestore, no user profile, or if user is a superadmin (handled by real-time hooks)
+    async function fetchUserBranches() {
       if (isProfileLoading || !firestore || !userProfile || userProfile.role === 'superadmin') {
-        if (!isProfileLoading) {
-            setIsLoadingData(false);
-        }
+        if(!isProfileLoading) setIsLoadingUserData(false);
         return;
       }
-
-      setIsLoadingData(true);
+      
+      setIsLoadingUserData(true);
       try {
         const branchIds = Object.keys(userProfile.assignedBranches || {});
         if (branchIds.length > 0) {
-          // Fetch only the branches the user is assigned to.
           const branchesData = await getBranchesByIds(firestore, branchIds);
-          setLocalBranches(branchesData);
+          setUserBranches(branchesData);
         } else {
-          // If user has no assigned branches, set data to empty.
-          setLocalBranches([]);
+          setUserBranches([]);
         }
       } catch (e) {
-        console.error("Error fetching dashboard data for user: ", e);
-        setLocalBranches([]);
+        console.error("Error fetching user branches:", e);
+        setUserBranches([]);
       } finally {
-        setIsLoadingData(false);
+        setIsLoadingUserData(false);
       }
     }
-
-    fetchUserData();
+    fetchUserBranches();
   }, [firestore, userProfile, isProfileLoading]);
+
 
   const isSuperAdmin = userProfile?.role === 'superadmin';
   
-  // Determine branches and incidents based on user role
-  const branches = isSuperAdmin ? adminBranches || [] : localBranches;
-  // CRITICAL FIX: Regular users will have an empty array of incidents on the dashboard.
-  const incidents = isSuperAdmin ? adminIncidents || [] : [];
-
-  const isLoading = isProfileLoading || (isSuperAdmin ? (isAdminBranchesLoading || isAdminIncidentsLoading) : isLoadingData);
+  // Determine final branches and incidents based on role
+  const branches = isSuperAdmin ? (adminBranches || []) : userBranches;
+  // CRITICAL FIX: Regular users have an empty array for incidents on the dashboard
+  // to prevent any unauthorized queries.
+  const incidents = isSuperAdmin ? (adminIncidents || []) : [];
+  
+  const isLoading = isProfileLoading || (isSuperAdmin ? (isAdminBranchesLoading || isAdminIncidentsLoading) : isLoadingUserData);
 
   if (isLoading) {
     return (
