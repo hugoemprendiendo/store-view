@@ -181,7 +181,7 @@ export default function IncidentsPage() {
                <Select value={filterBrand} onValueChange={setFilterBrand}>
                 <SelectTrigger>
                   <SelectValue placeholder="Filtrar por marca" />
-                </Trigger>
+                </SelectTrigger>
                 <SelectContent>
                   {availableOptions.brands.map(brand => (
                     <SelectItem key={brand as string} value={brand as string}>{brand === 'all' ? 'Todas las Marcas' : brand}</SelectItem>
