@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,28 +13,27 @@ export function useUserProfile() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Always start in a loading state if auth is still loading.
-    setIsLoading(isAuthLoading);
+    // Start loading and don't stop until we have a definitive answer.
+    setIsLoading(true);
 
     if (isAuthLoading) {
+      // Auth state is not yet determined, so we wait.
       return;
     }
     
-    // If auth is done but there's no user, we are done loading. No profile to fetch.
+    // Auth is done. If there's no authenticated user, there's no profile to fetch.
     if (!firestore || !authUser) {
       setUserProfile(null);
-      setIsLoading(false);
+      setIsLoading(false); // We are done loading.
       return;
     }
 
-    // At this point, auth is ready and we have a user. Start listening to their profile.
+    // Auth is ready and we have a user. Start listening to their profile document.
     const userDocRef = doc(firestore, 'users', authUser.uid);
     const unsubscribe = onSnapshot(userDocRef, (snapshot) => {
       if (snapshot.exists()) {
         setUserProfile({ id: snapshot.id, ...snapshot.data() } as UserProfile);
       } else {
-        // The user is authenticated, but their profile doc doesn't exist.
-        // This is a valid state, so we set profile to null.
         setUserProfile(null);
       }
       // We are done loading only after the first snapshot is processed.
@@ -45,7 +45,7 @@ export function useUserProfile() {
       setIsLoading(false);
     });
 
-    // Cleanup subscription on unmount
+    // Cleanup subscription on unmount.
     return () => unsubscribe();
   }, [firestore, authUser, isAuthLoading]);
 

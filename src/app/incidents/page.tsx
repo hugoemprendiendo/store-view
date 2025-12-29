@@ -29,7 +29,7 @@ export default function IncidentsPage() {
 
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [userBranches, setUserBranches] = useState<Branch[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -42,31 +42,28 @@ export default function IncidentsPage() {
     async function fetchData() {
        if (!firestore || !userProfile) {
         if(!isProfileLoading) {
-            setIsLoading(false);
+            setIsLoadingData(false);
             setUserBranches([]);
             setIncidents([]);
         }
         return;
       };
-      setIsLoading(true);
+      setIsLoadingData(true);
       
       try {
         let branchesData: Branch[] = [];
         let incidentsData: Incident[] = [];
-        let accessibleBranchIds: string[] = [];
 
-        // Step 1: Fetch the branches the user has access to.
         if (userProfile.role === 'superadmin') {
           branchesData = await getBranches(firestore);
-          accessibleBranchIds = branchesData.map(b => b.id);
         } else if (userProfile.assignedBranches && Object.keys(userProfile.assignedBranches).length > 0) {
           const branchIds = Object.keys(userProfile.assignedBranches);
           branchesData = await getBranchesByIds(firestore, branchIds);
-          accessibleBranchIds = branchIds;
         }
         setUserBranches(branchesData);
 
-        // Step 2: Fetch incidents only for the branches the user can access.
+        const accessibleBranchIds = branchesData.map(b => b.id);
+
         if (accessibleBranchIds.length > 0) {
           const chunks: string[][] = [];
           for (let i = 0; i < accessibleBranchIds.length; i += 30) {
@@ -85,7 +82,7 @@ export default function IncidentsPage() {
         setIncidents([]);
         setUserBranches([]);
       } finally {
-        setIsLoading(false);
+        setIsLoadingData(false);
       }
     }
 
@@ -147,7 +144,7 @@ export default function IncidentsPage() {
     return filteredIncidents.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [filteredIncidents]);
 
-  const totalLoading = isLoading || isProfileLoading;
+  const totalLoading = isProfileLoading || isLoadingData;
 
   if (totalLoading) {
       return (

@@ -59,8 +59,8 @@ service cloud.firestore {
       // The 'get' rule will be applied to every document returned by a 'list' (query) operation.
       allow get, write: if isAssignedToBranch(getIncidentBranchId());
       
-      // We only allow a superadmin to list all incidents.
-      // For regular users, queries must be filtered by branchId. The security for this
+      // We only allow a superadmin to list all incidents without filters.
+      // For regular users, queries MUST be filtered by branchId. Security for this
       // is enforced by the `get` rule above on each individual document returned by the query.
       allow list: if isSuperAdmin();
     }
