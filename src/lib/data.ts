@@ -186,7 +186,7 @@ export async function getIncidentsByBranch(firestore: Firestore, branchId: strin
     return incidentSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
 }
 
-// --- New Incident Settings Functions ---
+// --- Incident Settings Functions ---
 
 export async function getIncidentCategories(firestore: Firestore): Promise<IncidentCategory[]> {
     const categoriesCol = collection(firestore, 'incident_categories');
@@ -214,12 +214,35 @@ export async function getIncidentPriorities(firestore: Firestore): Promise<Incid
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as IncidentPriority));
 }
 
+export async function addIncidentPriority(firestore: Firestore, priority: Omit<IncidentPriority, 'id'>): Promise<IncidentPriority> {
+    const prioritiesCol = collection(firestore, 'incident_priorities');
+    const docRef = await addDoc(prioritiesCol, priority);
+    return { id: docRef.id, ...priority };
+}
+
+export async function deleteIncidentPriority(firestore: Firestore, id: string): Promise<void> {
+    const priorityRef = doc(firestore, 'incident_priorities', id);
+    await deleteDoc(priorityRef);
+}
+
 export async function getIncidentStatuses(firestore: Firestore): Promise<IncidentStatus[]> {
     const statusesCol = collection(firestore, 'incident_statuses');
     const q = query(statusesCol, orderBy('name'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as IncidentStatus));
 }
+
+export async function addIncidentStatus(firestore: Firestore, name: string): Promise<IncidentStatus> {
+    const statusesCol = collection(firestore, 'incident_statuses');
+    const docRef = await addDoc(statusesCol, { name });
+    return { id: docRef.id, name };
+}
+
+export async function deleteIncidentStatus(firestore: Firestore, id: string): Promise<void> {
+    const statusRef = doc(firestore, 'incident_statuses', id);
+    await deleteDoc(statusRef);
+}
+
 
 export async function getIncidentSettings(firestore: Firestore): Promise<IncidentSettings> {
     // This function now orchestrates fetching from the three separate collections.
