@@ -53,15 +53,8 @@ service cloud.firestore {
     }
 
     match /incidents/{incidentId} {
-      function getIncidentBranchId() {
-        // For 'create', the data is in request.resource.data.
-        // For 'update' or 'delete', the data is in the existing resource.
-        return request.method == 'create' ? request.resource.data.branchId : resource.data.branchId;
-      }
-      
-      // Allow get/write if the user is assigned to the incident's branch.
-      // `get` allows fetching single documents. Firestore uses this to check each document
-      // returned by a 'list' query.
+      // Allow 'get' if the user is assigned to the incident's branch.
+      // Firestore uses this to check each document returned by a 'list' query.
       allow get: if isAssignedToBranch(resource.data.branchId);
       
       // Allow 'list' (queries) to proceed if the user is signed in.
@@ -70,7 +63,8 @@ service cloud.firestore {
       allow list: if isSignedIn();
       
       // Allow write operations (create, update, delete) if assigned to the branch.
-      allow write: if isAssignedToBranch(getIncidentBranchId());
+      allow create: if isAssignedToBranch(request.resource.data.branchId);
+      allow update, delete: if isAssignedToBranch(resource.data.branchId);
     }
     
     match /app_settings/{settingId} {

@@ -23,7 +23,7 @@ interface DashboardClientProps {
 type StatusFilter = 'error' | 'warning' | 'ok' | 'all';
 
 function getBranchStatus(branchIncidents: Incident[]): 'error' | 'warning' | 'ok' {
-    // If we have no incident data for a branch (e.g. for regular users), default to 'ok'
+    // If we have no incident data for a branch (e.g., for regular users on the dashboard), default to 'ok'
     if (!branchIncidents || branchIncidents.length === 0) {
       return 'ok';
     }
@@ -47,7 +47,8 @@ export function DashboardClient({ branches, incidents }: DashboardClientProps) {
   const brands = useMemo(() => ['all', ...Array.from(new Set(branches.map((b) => b.brand)))], [branches]);
   const regions = useMemo(() => ['all', ...Array.from(new Set(branches.map((b) => b.region)))], [branches]);
 
-  const branchesWithIncidents = useMemo(() => {
+  const branchesWithStatus = useMemo(() => {
+    // Always map over all branches a user can see.
     return branches.map(branch => {
         const branchIncidents = incidents.filter(i => i.branchId === branch.id);
         return {
@@ -59,16 +60,17 @@ export function DashboardClient({ branches, incidents }: DashboardClientProps) {
   }, [branches, incidents]);
 
   const filteredBranches = useMemo(() => {
-    return branchesWithIncidents.filter(({ branch, status }) => {
+    return branchesWithStatus.filter(({ branch, status }) => {
       const brandMatch = selectedBrand === 'all' || branch.brand === selectedBrand;
       const regionMatch = selectedRegion === 'all' || branch.region === selectedRegion;
       const statusMatch = selectedStatus === 'all' || status === selectedStatus;
       return brandMatch && regionMatch && statusMatch;
     });
-  }, [branchesWithIncidents, selectedBrand, selectedRegion, selectedStatus]);
+  }, [branchesWithStatus, selectedBrand, selectedRegion, selectedStatus]);
 
   const { criticalCount, warningCount, operationalCount } = useMemo(() => {
-    return branchesWithIncidents.reduce(
+    // Calculate counts based on all visible branches with their status
+    return branchesWithStatus.reduce(
       (acc, { status }) => {
         if (status === 'error') {
           acc.criticalCount++;
@@ -81,7 +83,7 @@ export function DashboardClient({ branches, incidents }: DashboardClientProps) {
       },
       { criticalCount: 0, warningCount: 0, operationalCount: 0 }
     );
-  }, [branchesWithIncidents]);
+  }, [branchesWithStatus]);
 
   const handleStatusSelect = (status: StatusFilter) => {
     setSelectedStatus(prevStatus => prevStatus === status ? 'all' : status);
@@ -152,7 +154,7 @@ export function DashboardClient({ branches, incidents }: DashboardClientProps) {
                 <CardContent>
                     <div className="text-2xl font-bold">{branches.length}</div>
                     <p className="text-xs text-muted-foreground">
-                        {brands.length - 1} marcas en {regions.length -1} regiones
+                        {brands.length > 1 ? `${brands.length - 1} marcas en ` : ''} {regions.length > 1 ? `${regions.length -1} regiones` : ''}
                     </p>
                 </CardContent>
             </Card>

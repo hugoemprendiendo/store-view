@@ -6,18 +6,18 @@ import type { Branch, Incident } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useEffect, useState } from 'react';
-import { getBranchesByIds, getIncidentsForUser } from '@/lib/data';
+import { getBranchesByIds } from '@/lib/data';
 import { collection } from 'firebase/firestore';
 
 export default function DashboardPage() {
   const firestore = useFirestore();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
 
+  // State for non-admin users' data
   const [localBranches, setLocalBranches] = useState<Branch[]>([]);
-  const [localIncidents, setLocalIncidents] = useState<Incident[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
-  // Real-time queries for SUPERADMIN
+  // Real-time queries ONLY for SUPERADMIN
   const branchesQuery = useMemoFirebase(() => {
     if (!firestore || userProfile?.role !== 'superadmin') return null;
     return collection(firestore, 'branches');
@@ -46,23 +46,16 @@ export default function DashboardPage() {
       try {
         const branchIds = Object.keys(userProfile.assignedBranches || {});
         if (branchIds.length > 0) {
-          // Fetch the specific branches and their corresponding incidents in parallel
-          const [branchesData, incidentsData] = await Promise.all([
-            getBranchesByIds(firestore, branchIds),
-            getIncidentsForUser(firestore, branchIds)
-          ]);
+          // Fetch only the branches the user is assigned to.
+          const branchesData = await getBranchesByIds(firestore, branchIds);
           setLocalBranches(branchesData);
-          setLocalIncidents(incidentsData);
         } else {
-          // If user has no assigned branches, set data to empty arrays
+          // If user has no assigned branches, set data to empty.
           setLocalBranches([]);
-          setLocalIncidents([]);
         }
       } catch (e) {
         console.error("Error fetching dashboard data for user: ", e);
-        // Set to empty arrays on error to prevent crashes and show an empty state.
         setLocalBranches([]);
-        setLocalIncidents([]);
       } finally {
         setIsLoadingData(false);
       }
@@ -72,8 +65,11 @@ export default function DashboardPage() {
   }, [firestore, userProfile, isProfileLoading]);
 
   const isSuperAdmin = userProfile?.role === 'superadmin';
+  
+  // Determine branches and incidents based on user role
   const branches = isSuperAdmin ? adminBranches || [] : localBranches;
-  const incidents = isSuperAdmin ? adminIncidents || [] : localIncidents;
+  // CRITICAL FIX: Regular users will have an empty array of incidents on the dashboard.
+  const incidents = isSuperAdmin ? adminIncidents || [] : [];
 
   const isLoading = isProfileLoading || (isSuperAdmin ? (isAdminBranchesLoading || isAdminIncidentsLoading) : isLoadingData);
 
