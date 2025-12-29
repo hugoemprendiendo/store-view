@@ -14,9 +14,12 @@ service cloud.firestore {
     
     function isSuperAdmin() {
       // This relies on the user having read access to their own document.
+      // The exists() check makes this function safe.
+      if (!isSignedIn() || !exists(/databases/$(database)/documents/users/$(request.auth.uid))) {
+          return false;
+      }
       let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
-          && userDoc.data.role == 'superadmin';
+      return userDoc.data.role == 'superadmin';
     }
     
     function isAssignedToBranch(branchId) {
@@ -25,10 +28,12 @@ service cloud.firestore {
             return true;
         }
         // A regular user must exist and have the branchId in their assignedBranches map.
-        // This is now safe: it checks for the existence of the key before trying to access it.
+        // This is now safe: it checks for the existence of the document and the key before trying to access it.
+        if (!isSignedIn() || !exists(/databases/$(database)/documents/users/$(request.auth.uid))) {
+            return false;
+        }
         let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
-        return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-            && 'assignedBranches' in userDoc.data && branchId in userDoc.data.assignedBranches;
+        return 'assignedBranches' in userDoc.data && branchId in userDoc.data.assignedBranches;
     }
     
     match /users/{userId} {
