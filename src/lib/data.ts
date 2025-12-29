@@ -111,19 +111,24 @@ export async function getIncidentsForUser(firestore: Firestore, branchIds: strin
     return [];
   }
 
-  // Firestore 'in' queries are limited to 30 items, but more importantly,
-  // our security rules block 'list' operations for non-superadmins.
-  // Instead, we run multiple queries in parallel, one for each branch,
-  // which is allowed by the 'get' rule on individual documents.
+  // The security rules for a non-superadmin only allow list queries on the 'incidents' 
+  // collection if they are filtered by a single branchId they have access to. 
+  // A broader `where('branchId', 'in', ...)` query is blocked by security rules for non-superadmins.
+  // To solve this, we run multiple simple queries in parallel, one for each branch ID,
+  // which is permitted by the rules.
+  
   const incidentPromises = branchIds.map(branchId => {
       const incidentsRef = collection(firestore, 'incidents');
+      // Create a query for incidents in a single branch
       const q = query(incidentsRef, where('branchId', '==', branchId));
+      // getDocs(q) is permitted because the query matches the security rule structure.
       return getDocs(q);
   });
 
+  // Wait for all the parallel queries to complete.
   const querySnapshots = await Promise.all(incidentPromises);
   
-  // Flatten the results from all the queries into a single array.
+  // Flatten the results from all the queries into a single array of incidents.
   const allIncidents = querySnapshots.flatMap(snapshot => 
       snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident))
   );
