@@ -40,7 +40,9 @@ service cloud.firestore {
     
     match /users/{userId} {
       allow get: if isOwner(userId) || isSuperAdmin();
-      allow create, update: if isOwner(userId) || isSuperAdmin();
+      allow create: if isOwner(userId) || isSuperAdmin();
+      // A user can update their own profile, or a superadmin can update any profile.
+      allow update: if isOwner(userId) || isSuperAdmin();
       allow list: if isSuperAdmin();
       allow delete: if false; 
     }
