@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import type { Branch, Incident } from '@/lib/types';
-import { getBranchesByIds, getBranches, getIncidentsForUser } from '@/lib/data';
+import { getBranchesByIds, getBranches } from '@/lib/data';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -14,6 +14,7 @@ import { useFirestore } from '@/firebase';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const priorityVariantMap = {
   Low: 'secondary',
@@ -25,8 +26,8 @@ export default function IncidentsPage() {
   const firestore = useFirestore();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
 
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [allUserBranches, setAllUserBranches] = useState<Branch[]>([]);
+  const [incidents, setIncidents] = useState<Incident[] | null>(null);
+  const [allUserBranches, setAllUserBranches] = useState<Branch[] | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Filters
@@ -36,48 +37,49 @@ export default function IncidentsPage() {
   const [filterRegion, setFilterRegion] = useState('all');
   const [filterBrand, setFilterBrand] = useState('all');
   const [filterBranchId, setFilterBranchId] = useState('all');
-
+  
   useEffect(() => {
     async function fetchData() {
-        if (isProfileLoading || !firestore) {
-            return;
-        }
-        if (!userProfile) {
-            setIsLoadingData(false);
-            setAllUserBranches([]);
-            setIncidents([]);
-            return;
-        }
+      if (isProfileLoading || !firestore) {
+        return;
+      }
+      setIsLoadingData(true);
+      
+      if (!userProfile) {
+          setAllUserBranches(null);
+          setIncidents(null);
+          setIsLoadingData(false);
+          return;
+      }
 
-        setIsLoadingData(true);
-        try {
-            let branchesData: Branch[] = [];
-            let incidentsData: Incident[] = [];
+      const isSuperAdmin = userProfile.role === 'superadmin';
+      const accessibleBranchIds = isSuperAdmin ? null : Object.keys(userProfile.assignedBranches || {});
 
-            if (userProfile.role === 'superadmin') {
-                branchesData = await getBranches(firestore);
-                if (branchesData.length > 0) {
-                    const allBranchIds = branchesData.map(b => b.id);
-                    incidentsData = await getIncidentsForUser(firestore, allBranchIds);
-                }
-            } else if (userProfile.assignedBranches) {
-                const branchIds = Object.keys(userProfile.assignedBranches);
-                if (branchIds.length > 0) {
-                    branchesData = await getBranchesByIds(firestore, branchIds);
-                    incidentsData = await getIncidentsForUser(firestore, branchIds);
-                }
-            }
-            setAllUserBranches(branchesData);
+      try {
+        const branches = isSuperAdmin 
+          ? await getBranches(firestore) 
+          : await getBranchesByIds(firestore, accessibleBranchIds || []);
+        
+        setAllUserBranches(branches);
+
+        if (branches.length > 0) {
+            const branchIds = branches.map(b => b.id);
+            const incidentsQuery = query(collection(firestore, 'incidents'), where('branchId', 'in', branchIds));
+            const incidentsSnapshot = await getDocs(incidentsQuery);
+            const incidentsData = incidentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
             setIncidents(incidentsData);
-        } catch (error) {
-            console.error("Error fetching incidents page data:", error);
-            setAllUserBranches([]);
+        } else {
             setIncidents([]);
-        } finally {
-            setIsLoadingData(false);
         }
+
+      } catch (error) {
+        console.error("Error fetching data for incidents page:", error);
+        setAllUserBranches([]);
+        setIncidents([]);
+      } finally {
+        setIsLoadingData(false);
+      }
     }
-    
     fetchData();
   }, [firestore, userProfile, isProfileLoading]);
 
@@ -85,6 +87,7 @@ export default function IncidentsPage() {
   // --- Filtering Logic ---
 
   const branchMap = useMemo(() => {
+    if (!allUserBranches) return {};
     return allUserBranches.reduce((acc, branch) => {
         acc[branch.id] = branch;
         return acc;
@@ -92,6 +95,7 @@ export default function IncidentsPage() {
   }, [allUserBranches]);
 
   const filteredIncidents = useMemo(() => {
+    if (!incidents) return [];
     return incidents.filter(i => {
       const branch = branchMap[i.branchId];
       if (!branch) return false;
@@ -108,16 +112,16 @@ export default function IncidentsPage() {
 
   const availableOptions = useMemo(() => {
     const branchesInFilter = new Map<string, Branch>();
-    incidents.forEach(incident => {
+    (incidents || []).forEach(incident => {
       if (branchMap[incident.branchId] && !branchesInFilter.has(incident.branchId)) {
         branchesInFilter.set(incident.branchId, branchMap[incident.branchId]);
       }
     });
 
     const branchesArray = Array.from(branchesInFilter.values());
-    const uniqueCategories = ['all', ...Array.from(new Set(incidents.map(i => i.category).filter(Boolean)))];
-    const uniqueStatuses = ['all', ...Array.from(new Set(incidents.map(i => i.status).filter(Boolean)))];
-    const uniquePriorities = ['all', ...Array.from(new Set(incidents.map(i => i.priority).filter(Boolean)))];
+    const uniqueCategories = ['all', ...Array.from(new Set((incidents || []).map(i => i.category).filter(Boolean)))];
+    const uniqueStatuses = ['all', ...Array.from(new Set((incidents || []).map(i => i.status).filter(Boolean)))];
+    const uniquePriorities = ['all', ...Array.from(new Set((incidents || []).map(i => i.priority).filter(Boolean)))];
     const uniqueRegions = ['all', ...Array.from(new Set(branchesArray.map(b => b.region).filter(Boolean)))];
     const uniqueBrands = ['all', ...Array.from(new Set(branchesArray.map(b => b.brand).filter(Boolean)))];
   

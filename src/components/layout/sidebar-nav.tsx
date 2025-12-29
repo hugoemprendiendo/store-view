@@ -11,7 +11,7 @@ import {
   SidebarMenuButton,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { Building2, LayoutGrid, Settings, Store, LogOut, Users, List, PanelLeft, TestTube2 } from 'lucide-react';
+import { Building2, LayoutGrid, Settings, Store, LogOut, Users, List, PanelLeft } from 'lucide-react';
 import { useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -27,10 +27,6 @@ const links = [
 const adminLinks = [
     { href: '/admin/users', label: 'Usuarios', icon: Users },
     { href: '/settings', label: 'Configuración', icon: Settings }
-]
-
-const devLinks = [
-    { href: '/test', label: 'Página de Prueba', icon: TestTube2 },
 ]
 
 
@@ -96,26 +92,6 @@ export function SidebarNav() {
               </Link>
             </SidebarMenuItem>
           ))}
-          {process.env.NODE_ENV === 'development' && (
-            <>
-                <SidebarMenuItem>
-                    <hr className="my-2 border-border" />
-                </SidebarMenuItem>
-                {devLinks.map((link) => (
-                    <SidebarMenuItem key={link.href}>
-                        <Link href={link.href}>
-                            <SidebarMenuButton
-                            isActive={pathname.startsWith(link.href)}
-                            tooltip={link.label}
-                            >
-                            <link.icon />
-                            <span>{link.label}</span>
-                            </SidebarMenuButton>
-                        </Link>
-                    </SidebarMenuItem>
-                ))}
-            </>
-          )}
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>

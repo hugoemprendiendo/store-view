@@ -111,19 +111,23 @@ export async function getIncidentsForUser(firestore: Firestore, branchIds: strin
     return [];
   }
 
-  // Create an array of promises, where each promise is a query for a single branch.
-  const incidentPromises = branchIds.map(branchId => {
-    const incidentsRef = collection(firestore, 'incidents');
-    const q = query(incidentsRef, where('branchId', '==', branchId));
-    return getDocs(q);
+  // Firestore 'in' queries are limited to 30 items.
+  // We chunk the branchIds to handle more than 30.
+  const chunks: string[][] = [];
+  for (let i = 0; i < branchIds.length; i += 30) {
+      chunks.push(branchIds.slice(i, i + 30));
+  }
+
+  const incidentPromises = chunks.map(chunk => {
+      const incidentsRef = collection(firestore, 'incidents');
+      const q = query(incidentsRef, where('branchId', 'in', chunk));
+      return getDocs(q);
   });
 
-  // Wait for all the queries to complete.
   const querySnapshots = await Promise.all(incidentPromises);
-
-  // Flatten the results from all snapshots into a single array of incidents.
-  const allIncidents = querySnapshots.flatMap(snapshot =>
-    snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident))
+  
+  const allIncidents = querySnapshots.flatMap(snapshot => 
+      snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident))
   );
 
   return allIncidents;
