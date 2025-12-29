@@ -30,10 +30,18 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const firestore = useFirestore();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isProfileLoading && userProfile?.role !== 'superadmin') {
+      router.push('/');
+    }
+  }, [isProfileLoading, userProfile, router]);
+
 
   useEffect(() => {
     const loadData = async () => {
-      if (!firestore) {
+      if (!firestore || userProfile?.role !== 'superadmin') {
         setIsLoading(false);
         return;
       }
@@ -45,11 +53,14 @@ export default function SettingsPage() {
         if (settingsSnap.exists()) {
           setSettings(settingsSnap.data() as IncidentSettings);
         } else {
-          setSettings({ categories: [], priorities: ['Low', 'Medium', 'High'], statuses: ['Abierto', 'En Progreso', 'Resuelto'] });
+          // This should be seeded, but as a fallback:
+          const defaultSettings = { categories: [], priorities: ['Low', 'Medium', 'High'], statuses: ['Abierto', 'En Progreso', 'Resuelto'] };
+          setSettings(defaultSettings);
           toast({
             title: 'Configuración no encontrada',
             description: 'Creando documento de configuración inicial.'
-          })
+          });
+          await setDoc(settingsRef, defaultSettings);
         }
       } catch (error) {
         console.error("Error fetching settings:", error);
@@ -63,9 +74,11 @@ export default function SettingsPage() {
       }
     };
     
-    loadData();
+    if (!isProfileLoading) {
+      loadData();
+    }
 
-  }, [firestore, toast]);
+  }, [firestore, toast, userProfile, isProfileLoading]);
 
 
   const handleSaveCategories = async (newCategories: string[]) => {
@@ -116,7 +129,7 @@ export default function SettingsPage() {
     handleSaveCategories(newCategories);
   };
   
-  if (isLoading || isProfileLoading) {
+  if (isLoading || isProfileLoading || userProfile?.role !== 'superadmin') {
     return (
       <div className="flex flex-col gap-6">
         <Header title="Configuración" />

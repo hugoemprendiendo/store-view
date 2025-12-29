@@ -38,8 +38,15 @@ export default function UsersPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (!isProfileLoading && userProfile?.role !== 'superadmin') {
+      router.push('/');
+    }
+  }, [isProfileLoading, userProfile, router]);
+
+
+  useEffect(() => {
       async function fetchData() {
-        if (!firestore) return;
+        if (!firestore || userProfile?.role !== 'superadmin') return;
         setIsLoading(true);
         try {
           const [usersSnapshot, branchesData] = await Promise.all([
@@ -59,10 +66,12 @@ export default function UsersPage() {
           setIsLoading(false);
         }
       }
-
-      fetchData();
+      
+      if(!isProfileLoading){
+        fetchData();
+      }
     
-  }, [firestore, isProfileLoading, userProfile, router]);
+  }, [firestore, isProfileLoading, userProfile]);
   
   const totalLoading = isLoading || isProfileLoading;
 
@@ -73,7 +82,7 @@ export default function UsersPage() {
     router.refresh();
   };
 
-  if (totalLoading) {
+  if (totalLoading || userProfile?.role !== 'superadmin') {
     return (
       <div className="flex flex-col gap-6">
         <Header title="Usuarios" />
