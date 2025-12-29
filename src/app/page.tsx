@@ -2,7 +2,7 @@
 'use client';
 import { Header } from '@/components/layout/header';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import type { Branch, Incident } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -12,7 +12,6 @@ import { getBranchesByIds, getBranches } from '@/lib/data';
 
 export default function DashboardPage() {
   const firestore = useFirestore();
-  const { user } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
   const [userBranches, setUserBranches] = useState<Branch[] | null>(null);
   const [incidents, setIncidents] = useState<Incident[] | null>(null);
@@ -34,21 +33,16 @@ export default function DashboardPage() {
 
         // 1. Fetch branches based on user role
         if (userProfile.role === 'superadmin') {
-          // Superadmin gets all branches
           branchesData = await getBranches(firestore);
-        } else if (userProfile.assignedBranches) {
-          // Normal user gets only assigned branches
+        } else if (userProfile.assignedBranches && Object.keys(userProfile.assignedBranches).length > 0) {
           const branchIds = Object.keys(userProfile.assignedBranches);
-          if (branchIds.length > 0) {
-            branchesData = await getBranchesByIds(firestore, branchIds);
-          }
+          branchesData = await getBranchesByIds(firestore, branchIds);
         }
         setUserBranches(branchesData);
 
         // 2. Fetch incidents based on the fetched branches
         const accessibleBranchIds = branchesData.map(b => b.id);
         if (accessibleBranchIds.length > 0) {
-           // Firestore 'in' query is limited to 30 elements per chunk.
            const chunks: string[][] = [];
            for (let i = 0; i < accessibleBranchIds.length; i += 30) {
              chunks.push(accessibleBranchIds.slice(i, i + 30));
@@ -62,12 +56,7 @@ export default function DashboardPage() {
            incidentsData = allSnapshots.flatMap(snapshot =>
              snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident))
            );
-        } else if (userProfile.role === 'superadmin') {
-            // Superadmin has no branches assigned but should see all incidents
-            const incidentsSnapshot = await getDocs(collection(firestore, 'incidents'));
-            incidentsData = incidentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data()} as Incident));
         }
-
         setIncidents(incidentsData);
       } catch (e) {
         console.error("Error fetching dashboard data: ", e);

@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +25,6 @@ const priorityVariantMap = {
 
 export default function IncidentsPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
 
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -47,50 +46,47 @@ export default function IncidentsPage() {
       };
       setIsLoading(true);
       
-      let incidentsData: Incident[] = [];
-      let branchesData: Branch[] = [];
-
       try {
+        let branchesData: Branch[] = [];
+        let incidentsData: Incident[] = [];
+
+        // Step 1: Fetch the branches the user has access to.
         if (userProfile.role === 'superadmin') {
-          // Superadmin: Fetch all incidents and all branches
-          const [incidentsSnapshot, allBranches] = await Promise.all([
-            getDocs(collection(firestore, 'incidents')),
-            getBranches(firestore)
-          ]);
-          incidentsData = incidentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
-          branchesData = allBranches;
-        } else {
-          // Regular user: Fetch assigned branches, then fetch incidents for those branches.
-          const accessibleBranchIds = Object.keys(userProfile.assignedBranches || {});
-          if (accessibleBranchIds.length > 0) {
-            branchesData = await getBranchesByIds(firestore, accessibleBranchIds);
-
-            // Firestore 'in' query is limited to 30 elements. Chunking is required for > 30.
-            const chunks = [];
-            for (let i = 0; i < accessibleBranchIds.length; i += 30) {
-                chunks.push(accessibleBranchIds.slice(i, i + 30));
-            }
-            const incidentPromises = chunks.map(chunk => 
-                getDocs(query(collection(firestore, 'incidents'), where('branchId', 'in', chunk)))
-            );
-            const incidentsSnapshots = await Promise.all(incidentPromises);
-            incidentsData = incidentsSnapshots.flatMap(snap => snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident)));
-          }
+          branchesData = await getBranches(firestore);
+        } else if (userProfile.assignedBranches && Object.keys(userProfile.assignedBranches).length > 0) {
+          const branchIds = Object.keys(userProfile.assignedBranches);
+          branchesData = await getBranchesByIds(firestore, branchIds);
         }
-
-        setIncidents(incidentsData);
         setUserBranches(branchesData);
+
+        // Step 2: Fetch incidents only for the branches the user can access.
+        const accessibleBranchIds = branchesData.map(b => b.id);
+        if (accessibleBranchIds.length > 0) {
+          const chunks = [];
+          for (let i = 0; i < accessibleBranchIds.length; i += 30) {
+              chunks.push(accessibleBranchIds.slice(i, i + 30));
+          }
+          const incidentPromises = chunks.map(chunk => 
+              getDocs(query(collection(firestore, 'incidents'), where('branchId', 'in', chunk)))
+          );
+          const incidentsSnapshots = await Promise.all(incidentPromises);
+          incidentsData = incidentsSnapshots.flatMap(snap => snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident)));
+        }
+        setIncidents(incidentsData);
+        
       } catch (error) {
         console.error("Error fetching data: ", error);
+        setIncidents([]);
+        setUserBranches([]);
       } finally {
         setIsLoading(false);
       }
     }
 
-    if (!isUserLoading && !isProfileLoading) {
+    if (!isProfileLoading) {
         fetchData();
     }
-  }, [firestore, user, userProfile, isUserLoading, isProfileLoading]);
+  }, [firestore, userProfile, isProfileLoading]);
 
   const branchMap = useMemo(() => {
     return userBranches.reduce((acc, branch) => {
@@ -103,9 +99,9 @@ export default function IncidentsPage() {
     return incidents.filter(i => {
       const branch = branchMap[i.branchId];
       if (!branch) {
-          // For superadmin, they might see incidents from branches not yet loaded into the map if new incidents were created
-          // but the branch data hasn't been refreshed. For regular users, we must have branch info.
-          return userProfile?.role === 'superadmin' && (filterBranchId === 'all' && filterRegion === 'all' && filterBrand === 'all');
+          // This can happen if an incident belongs to a branch that the user
+          // doesn't have access to, or data is inconsistent. Safest to not show it.
+          return false;
       }
       return (
         (filterCategory === 'all' || i.category === filterCategory) &&
@@ -116,36 +112,33 @@ export default function IncidentsPage() {
         (filterBranchId === 'all' || i.branchId === filterBranchId)
       );
     });
-  }, [incidents, filterCategory, filterStatus, filterPriority, filterRegion, filterBrand, filterBranchId, branchMap, userProfile?.role]);
+  }, [incidents, filterCategory, filterStatus, filterPriority, filterRegion, filterBrand, filterBranchId, branchMap]);
 
   const availableOptions = useMemo(() => {
-    // Start with all incidents, not filtered ones, to populate filters initially
-    const allBranchesInvolved = new Map<string, Branch>();
-    const involvedIncidents = userProfile?.role === 'superadmin' ? incidents : filteredIncidents;
-    
-    involvedIncidents.forEach(incident => {
-      if (branchMap[incident.branchId]) {
-        allBranchesInvolved.set(incident.branchId, branchMap[incident.branchId]);
+    const branchesInFilter = new Map<string, Branch>();
+    filteredIncidents.forEach(incident => {
+      if (branchMap[incident.branchId] && !branchesInFilter.has(incident.branchId)) {
+        branchesInFilter.set(incident.branchId, branchMap[incident.branchId]);
       }
     });
-  
-    const branchesArray = Array.from(allBranchesInvolved.values());
+
+    const branchesArray = Array.from(branchesInFilter.values());
   
     return {
-      categories: ['all', ...Array.from(new Set(involvedIncidents.map(i => i.category)))],
-      statuses: ['all', ...Array.from(new Set(involvedIncidents.map(i => i.status)))],
-      priorities: ['all', ...Array.from(new Set(involvedIncidents.map(i => i.priority)))],
+      categories: ['all', ...Array.from(new Set(filteredIncidents.map(i => i.category)))],
+      statuses: ['all', ...Array.from(new Set(filteredIncidents.map(i => i.status)))],
+      priorities: ['all', ...Array.from(new Set(filteredIncidents.map(i => i.priority)))],
       regions: ['all', ...Array.from(new Set(branchesArray.map(b => b.region)))],
       brands: ['all', ...Array.from(new Set(branchesArray.map(b => b.brand)))],
       branches: ['all', ...branchesArray],
     };
-  }, [incidents, filteredIncidents, branchMap, userProfile?.role]);
+  }, [filteredIncidents, branchMap]);
   
   const sortedAndFilteredIncidents = useMemo(() => {
     return filteredIncidents.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [filteredIncidents]);
 
-  const totalLoading = isLoading || isUserLoading || isProfileLoading;
+  const totalLoading = isLoading || isProfileLoading;
 
   if (totalLoading) {
       return (
@@ -171,8 +164,9 @@ export default function IncidentsPage() {
                   <SelectValue placeholder="Filtrar por región" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableOptions.regions.map(reg => (
-                    <SelectItem key={reg} value={reg}>{reg === 'all' ? 'Todas las Regiones' : reg}</SelectItem>
+                  <SelectItem value="all">Todas las Regiones</SelectItem>
+                  {availableOptions.regions.filter(r => r !== 'all').map(reg => (
+                    <SelectItem key={reg} value={reg}>{reg}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -181,8 +175,9 @@ export default function IncidentsPage() {
                   <SelectValue placeholder="Filtrar por marca" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableOptions.brands.map(brand => (
-                    <SelectItem key={brand} value={brand}>{brand === 'all' ? 'Todas las Marcas' : brand}</SelectItem>
+                  <SelectItem value="all">Todas las Marcas</SelectItem>
+                  {availableOptions.brands.filter(b => b !== 'all').map(brand => (
+                    <SelectItem key={brand} value={brand}>{brand}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -202,8 +197,9 @@ export default function IncidentsPage() {
                   <SelectValue placeholder="Filtrar por categoría" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableOptions.categories.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat === 'all' ? 'Todas las Categorías' : cat}</SelectItem>
+                  <SelectItem value="all">Todas las Categorías</SelectItem>
+                  {availableOptions.categories.filter(c => c !== 'all').map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -212,8 +208,9 @@ export default function IncidentsPage() {
                   <SelectValue placeholder="Filtrar por estado" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableOptions.statuses.map(stat => (
-                    <SelectItem key={stat} value={stat}>{stat === 'all' ? 'Todos los Estados' : stat}</SelectItem>
+                  <SelectItem value="all">Todos los Estados</SelectItem>
+                  {availableOptions.statuses.filter(s => s !== 'all').map(stat => (
+                    <SelectItem key={stat} value={stat}>{stat}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -222,8 +219,9 @@ export default function IncidentsPage() {
                   <SelectValue placeholder="Filtrar por prioridad" />
                 </SelectTrigger>
                 <SelectContent>
-                   {availableOptions.priorities.map(prio => (
-                    <SelectItem key={prio} value={prio}>{prio === 'all' ? 'Todas las Prioridades' : prio === 'High' ? 'Alta' : prio === 'Medium' ? 'Media' : 'Baja'}</SelectItem>
+                   <SelectItem value="all">Todas las Prioridades</SelectItem>
+                   {availableOptions.priorities.filter(p => p !== 'all').map(prio => (
+                    <SelectItem key={prio} value={prio}>{prio === 'High' ? 'Alta' : prio === 'Medium' ? 'Media' : 'Baja'}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
