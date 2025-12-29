@@ -37,11 +37,11 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // A user can create their own profile. For now, this also allows signup.
+      // A user can create their own profile.
       allow create: if isOwner(userId);
       // A user MUST be able to read their own document for isSuperAdmin() to work.
       allow get: if isOwner(userId);
-      // Listing and updating is restricted to superadmins.
+      // Listing and updating other users is restricted to superadmins.
       allow list, update: if isSuperAdmin();
     }
 
@@ -75,10 +75,8 @@ service cloud.firestore {
     }
 
      match /app_settings/{settingId} {
-        // Any signed-in user can read the settings (needed for forms), 
-        // but only superadmins can write them.
-        allow get, list: if isSignedIn();
-        allow write: if isSuperAdmin();
+        // Only superadmins can read or write settings. This is the simplest rule.
+        allow read, write: if isSuperAdmin();
      }
   }
 }

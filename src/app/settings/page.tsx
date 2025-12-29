@@ -14,9 +14,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useFirestore } from '@/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
-
 
 const priorityTextMap: Record<string, string> = {
     Low: 'Baja',
@@ -36,26 +33,21 @@ export default function SettingsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // This effect handles loading data and permissions.
     const loadData = async () => {
-      // Wait until both user profile is loaded and firestore is available.
+      // 1. Wait for auth and firestore to be ready.
       if (isProfileLoading || !firestore) {
-        return; // Exit early if we don't have what we need.
-      }
-
-      // If loading is finished and there's no profile, or the role is not superadmin, redirect.
-      if (!userProfile) {
-        router.push('/');
-        return;
-      }
-      
-      if (userProfile.role !== 'superadmin') {
-        router.push('/');
-        setIsLoading(false); // Stop loading and finish.
         return;
       }
 
-      // If we are here, we are a superadmin. Try to fetch the settings.
+      // 2. Auth is ready. Check if user is logged in and is a superadmin.
+      if (!userProfile || userProfile.role !== 'superadmin') {
+        // If not, redirect and stop loading.
+        router.push('/');
+        setIsLoading(false);
+        return;
+      }
+
+      // 3. User is a superadmin. Now, try to fetch the settings.
       const settingsRef = doc(firestore, 'app_settings', 'incident_config');
       try {
         const settingsSnap = await getDoc(settingsRef);
@@ -69,15 +61,17 @@ export default function SettingsPage() {
           });
         }
       } catch (error: any) {
+         // This catch block will now correctly handle permission errors
+         // because the rules are simple and the logic is sequential.
          console.error("Error fetching settings:", error);
-         // Create and throw the detailed error for debugging
-         const permissionError = new FirestorePermissionError({
-           path: settingsRef.path,
-           operation: 'get',
-         });
-         errorEmitter.emit('permission-error', permissionError);
+         toast({
+            variant: 'destructive',
+            title: 'Error al Cargar',
+            description: 'No se pudieron cargar los ajustes. Es posible que no tengas permisos.',
+        });
       } finally {
-        setIsLoading(false); // Ensure loading is always stopped.
+        // 4. In any case, stop the loading indicator.
+        setIsLoading(false);
       }
     };
     
@@ -92,29 +86,23 @@ export default function SettingsPage() {
     
     const settingsRef = doc(firestore, 'app_settings', 'incident_config');
     
-    setDoc(settingsRef, updatedSettings, { merge: true }).then(() => {
+    try {
+        await setDoc(settingsRef, updatedSettings, { merge: true });
         setSettings(updatedSettings);
         toast({
             title: 'Categorías guardadas',
             description: 'La lista de categorías ha sido actualizada.',
         });
-    }).catch(error => {
-        const permissionError = new FirestorePermissionError({
-            path: settingsRef.path,
-            operation: 'update',
-            requestResourceData: updatedSettings,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        
+    } catch (error) {
         toast({
             variant: 'destructive',
             title: 'Error al Guardar',
             description: 'No tienes permisos para guardar las categorías.',
         });
         console.error("Error saving categories:", error);
-    }).finally(() => {
+    } finally {
         setIsSaving(false);
-    });
+    }
   };
 
   const handleAddCategory = () => {
