@@ -83,13 +83,29 @@ export async function getBranches(firestore: Firestore): Promise<Branch[]> {
 }
 
 export async function getBranchesByIds(firestore: Firestore, ids: string[]): Promise<Branch[]> {
-  if (ids.length === 0) return [];
-  const branchPromises = ids.map(id => getDoc(doc(firestore, 'branches', id)));
-  const branchSnapshots = await Promise.all(branchPromises);
-  return branchSnapshots
-      .filter(snap => snap.exists())
-      .map(snap => ({ id: snap.id, ...snap.data() } as Branch));
+  if (!ids || ids.length === 0) return [];
+
+  // Firestore 'in' queries are limited to 30 values.
+  // We chunk the IDs to handle more than 30.
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += 30) {
+    chunks.push(ids.slice(i, i + 30));
+  }
+
+  const branchPromises = chunks.map(chunk => {
+    const q = query(collection(firestore, 'branches'), where('__name__', 'in', chunk));
+    return getDocs(q);
+  });
+
+  const querySnapshots = await Promise.all(branchPromises);
+  
+  const branches = querySnapshots.flatMap(snapshot => 
+      snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Branch))
+  );
+
+  return branches;
 }
+
 
 export async function getBranchById(firestore: Firestore, id: string): Promise<Branch | undefined> {
     const branchRef = doc(firestore, 'branches', id);
@@ -110,18 +126,17 @@ export async function getIncidentsForUser(firestore: Firestore, branchIds: strin
   if (!branchIds || branchIds.length === 0) {
     return [];
   }
-  
-  // The security rules for a non-superadmin only allow list queries on the 'incidents' 
-  // collection if they are filtered by a single branchId they have access to. 
-  // A broader `where('branchId', 'in', ...)` query is blocked by security rules for non-superadmins.
-  // To solve this, we run multiple simple queries in parallel, one for each branch ID,
-  // which is permitted by the rules.
-  
-  const incidentPromises = branchIds.map(branchId => {
+  // Firestore 'in' queries are limited to 30 values.
+  // We must chunk the branchIds array to handle cases where a user is assigned to more than 30 branches.
+  const chunks: string[][] = [];
+  for (let i = 0; i < branchIds.length; i += 30) {
+      chunks.push(branchIds.slice(i, i + 30));
+  }
+
+  const incidentPromises = chunks.map(chunk => {
       const incidentsRef = collection(firestore, 'incidents');
-      // Create a query for incidents in a single branch
-      const q = query(incidentsRef, where('branchId', '==', branchId));
-      // getDocs(q) is permitted because the query matches the security rule structure.
+      // Create a query for incidents where branchId is in the current chunk of branch IDs.
+      const q = query(incidentsRef, where('branchId', 'in', chunk));
       return getDocs(q);
   });
 
