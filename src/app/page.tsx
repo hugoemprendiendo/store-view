@@ -14,7 +14,6 @@ export default function DashboardPage() {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
 
   const [localBranches, setLocalBranches] = useState<Branch[]>([]);
-  const [localIncidents, setLocalIncidents] = useState<Incident[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Real-time queries for SUPERADMIN
@@ -42,8 +41,8 @@ export default function DashboardPage() {
       }
 
       if (userProfile.role === 'superadmin') {
-        setIsLoadingData(false);
-        return; // Superadmin data is handled by real-time hooks
+        setIsLoadingData(false); // Superadmin data is handled by real-time hooks
+        return;
       }
 
       // --- Logic for regular users ---
@@ -56,12 +55,9 @@ export default function DashboardPage() {
         } else {
           setLocalBranches([]);
         }
-        // Regular users DO NOT fetch incidents on the dashboard.
-        setLocalIncidents([]); 
       } catch (e) {
         console.error("Error fetching dashboard data for user: ", e);
         setLocalBranches([]);
-        setLocalIncidents([]);
       } finally {
         setIsLoadingData(false);
       }
@@ -72,7 +68,7 @@ export default function DashboardPage() {
 
   // Determine final data based on user role
   const branches = userProfile?.role === 'superadmin' ? adminBranches || [] : localBranches;
-  const incidents = userProfile?.role === 'superadmin' ? adminIncidents || [] : localIncidents;
+  const incidents = userProfile?.role === 'superadmin' ? adminIncidents || [] : []; // Non-admins don't get incidents on dashboard
 
   const isLoading = isProfileLoading || isLoadingData || (userProfile?.role === 'superadmin' && (isAdminBranchesLoading || isAdminIncidentsLoading));
 
