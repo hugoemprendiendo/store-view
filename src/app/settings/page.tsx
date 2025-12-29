@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useFirestore } from '@/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { getIncidentSettings } from '@/lib/data';
 
 const priorityTextMap: Record<string, string> = {
     Low: 'Baja',
@@ -53,19 +54,11 @@ export default function SettingsPage() {
         return;
       }
 
-      // 3. User is a superadmin. Now, try to fetch the settings.
-      const settingsRef = doc(firestore, 'app_settings', 'incident_config');
+      // 3. User is a superadmin. Fetch settings using the data function.
+      // This function now handles creation if the doc doesn't exist.
       try {
-        const settingsSnap = await getDoc(settingsRef);
-        if (settingsSnap.exists()) {
-          setSettings(settingsSnap.data() as IncidentSettings);
-        } else {
-           toast({
-            variant: 'destructive',
-            title: 'Faltan Ajustes',
-            description: 'El documento de configuración de incidencias no se encuentra. Un superadmin puede guardarlo para crearlo.',
-          });
-        }
+        const settingsData = await getIncidentSettings(firestore);
+        setSettings(settingsData);
       } catch (error: any) {
          console.error("Error fetching settings:", error);
          toast({
@@ -145,6 +138,23 @@ export default function SettingsPage() {
   // we show nothing, as the redirect is already happening.
   if (!userProfile || userProfile.role !== 'superadmin') {
       return null;
+  }
+  
+  if (!settings) {
+    // This case should be rare now, but it's good practice to handle it.
+    return (
+         <div className="flex flex-col gap-6">
+            <Header title="Configuración" />
+            <Card>
+                <CardHeader>
+                    <CardTitle>Cargando Configuración...</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p>Si este mensaje persiste, por favor, recarga la página.</p>
+                </CardContent>
+            </Card>
+        </div>
+    )
   }
 
   return (
