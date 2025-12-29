@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -32,15 +33,16 @@ service cloud.firestore {
       // A user must be able to read their own document for isSuperAdmin() and isAssignedToBranch() to work.
       // A superadmin can get any user's profile.
       allow get: if isOwner(userId) || isSuperAdmin();
-      // Allow a user to create their own profile.
-      allow create: if isOwner(userId);
-      // Listing and updating is restricted to superadmins.
-      allow list, update: if isSuperAdmin();
+      // Allow a user to create their own profile. A superadmin can create/update any profile.
+      allow write: if isOwner(userId) || isSuperAdmin();
+      // Listing is restricted to superadmins.
+      allow list: if isSuperAdmin();
       allow delete: if false; // Nobody can delete user profiles
     }
 
     match /branches/{branchId} {
       allow get: if isAssignedToBranch(branchId);
+      // Superadmin can list all branches. Regular users get their branches from their profile.
       allow list: if isSuperAdmin();
       allow create, update, delete: if isSuperAdmin();
     }

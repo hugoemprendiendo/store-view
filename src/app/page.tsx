@@ -2,7 +2,7 @@
 'use client';
 import { Header } from '@/components/layout/header';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
-import { useFirestore, useUser, useMemoFirebase } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import type { Branch, Incident } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { collection, query, where, getDocs } from 'firebase/firestore';

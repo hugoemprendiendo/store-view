@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import type { Branch, Incident } from '@/lib/types';
-import { getBranchesByIds } from '@/lib/data';
+import { getBranchesByIds, getBranches } from '@/lib/data';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -51,34 +51,31 @@ export default function IncidentsPage() {
       let branchesData: Branch[] = [];
 
       try {
-        const accessibleBranchIds = userProfile.role === 'superadmin' 
-            ? null // Superadmin can access all, so we don't need to pre-filter by ID.
-            : Object.keys(userProfile.assignedBranches || {});
-
         if (userProfile.role === 'superadmin') {
           // Superadmin: Fetch all incidents and all branches
-          const incidentsSnapshot = await getDocs(collection(firestore, 'incidents'));
+          const [incidentsSnapshot, allBranches] = await Promise.all([
+            getDocs(collection(firestore, 'incidents')),
+            getBranches(firestore)
+          ]);
           incidentsData = incidentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
-          
-          const branchIdsFromIncidents = [...new Set(incidentsData.map(inc => inc.branchId))];
-          if(branchIdsFromIncidents.length > 0) {
-            branchesData = await getBranchesByIds(firestore, branchIdsFromIncidents);
-          }
-
-        } else if (accessibleBranchIds && accessibleBranchIds.length > 0) {
+          branchesData = allBranches;
+        } else {
           // Regular user: Fetch assigned branches, then fetch incidents for those branches.
-          branchesData = await getBranchesByIds(firestore, accessibleBranchIds);
+          const accessibleBranchIds = Object.keys(userProfile.assignedBranches || {});
+          if (accessibleBranchIds.length > 0) {
+            branchesData = await getBranchesByIds(firestore, accessibleBranchIds);
 
-          // Firestore 'in' query is limited to 30 elements. Chunking is required for > 30.
-          const chunks = [];
-          for (let i = 0; i < accessibleBranchIds.length; i += 30) {
-              chunks.push(accessibleBranchIds.slice(i, i + 30));
+            // Firestore 'in' query is limited to 30 elements. Chunking is required for > 30.
+            const chunks = [];
+            for (let i = 0; i < accessibleBranchIds.length; i += 30) {
+                chunks.push(accessibleBranchIds.slice(i, i + 30));
+            }
+            const incidentPromises = chunks.map(chunk => 
+                getDocs(query(collection(firestore, 'incidents'), where('branchId', 'in', chunk)))
+            );
+            const incidentsSnapshots = await Promise.all(incidentPromises);
+            incidentsData = incidentsSnapshots.flatMap(snap => snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident)));
           }
-          const incidentPromises = chunks.map(chunk => 
-              getDocs(query(collection(firestore, 'incidents'), where('branchId', 'in', chunk)))
-          );
-          const incidentsSnapshots = await Promise.all(incidentPromises);
-          incidentsData = incidentsSnapshots.flatMap(snap => snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident)));
         }
 
         setIncidents(incidentsData);
@@ -108,7 +105,7 @@ export default function IncidentsPage() {
       if (!branch) {
           // For superadmin, they might see incidents from branches not yet loaded into the map if new incidents were created
           // but the branch data hasn't been refreshed. For regular users, we must have branch info.
-          return userProfile?.role === 'superadmin';
+          return userProfile?.role === 'superadmin' && (filterBranchId === 'all' && filterRegion === 'all' && filterBrand === 'all');
       }
       return (
         (filterCategory === 'all' || i.category === filterCategory) &&
@@ -124,7 +121,9 @@ export default function IncidentsPage() {
   const availableOptions = useMemo(() => {
     // Start with all incidents, not filtered ones, to populate filters initially
     const allBranchesInvolved = new Map<string, Branch>();
-    incidents.forEach(incident => {
+    const involvedIncidents = userProfile?.role === 'superadmin' ? incidents : filteredIncidents;
+    
+    involvedIncidents.forEach(incident => {
       if (branchMap[incident.branchId]) {
         allBranchesInvolved.set(incident.branchId, branchMap[incident.branchId]);
       }
@@ -133,14 +132,14 @@ export default function IncidentsPage() {
     const branchesArray = Array.from(allBranchesInvolved.values());
   
     return {
-      categories: ['all', ...Array.from(new Set(incidents.map(i => i.category)))],
-      statuses: ['all', ...Array.from(new Set(incidents.map(i => i.status)))],
-      priorities: ['all', ...Array.from(new Set(incidents.map(i => i.priority)))],
+      categories: ['all', ...Array.from(new Set(involvedIncidents.map(i => i.category)))],
+      statuses: ['all', ...Array.from(new Set(involvedIncidents.map(i => i.status)))],
+      priorities: ['all', ...Array.from(new Set(involvedIncidents.map(i => i.priority)))],
       regions: ['all', ...Array.from(new Set(branchesArray.map(b => b.region)))],
       brands: ['all', ...Array.from(new Set(branchesArray.map(b => b.brand)))],
       branches: ['all', ...branchesArray],
     };
-  }, [incidents, branchMap]);
+  }, [incidents, filteredIncidents, branchMap, userProfile?.role]);
   
   const sortedAndFilteredIncidents = useMemo(() => {
     return filteredIncidents.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
