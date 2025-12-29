@@ -42,9 +42,11 @@ export default function DashboardPage() {
         } else if (userProfile.assignedBranches) {
           const branchIds = Object.keys(userProfile.assignedBranches);
           if (branchIds.length > 0) {
-             // For non-superadmin, fetch branches and then their incidents safely.
+             // For non-superadmin, ONLY fetch the branches.
+             // The getIncidentsForUser query is too broad for the dashboard and violates security rules.
+             // Incidents will be shown on a per-branch basis.
              branchesData = await getBranchesByIds(firestore, branchIds);
-             incidentsData = await getIncidentsForUser(firestore, branchIds);
+             // Leave incidentsData as an empty array for non-superadmins on the dashboard.
           }
         }
         setBranches(branchesData);
