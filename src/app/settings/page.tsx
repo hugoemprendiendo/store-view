@@ -33,23 +33,21 @@ export default function SettingsPage() {
   const router = useRouter();
 
   useEffect(() => {
+    // This effect now handles all loading, permission checking, and data fetching sequentially.
     const loadData = async () => {
-      // 1. Wait for auth and profile to be resolved.
+      // 1. Wait until both authentication is resolved and firestore is available.
       if (isProfileLoading || !firestore) {
-        setIsLoading(true);
         return;
       }
 
-      // 2. If loading is finished, check the role.
+      // 2. Once auth is resolved, check the user's role.
       if (!userProfile || userProfile.role !== 'superadmin') {
         router.push('/');
-        return; // Stop execution if not a superadmin
+        return; // Redirect if not a superadmin. We don't need to fetch settings.
       }
       
-      // 3. Only superadmins proceed to fetch settings.
-      setIsLoading(true);
+      // 3. Only if the user is a superadmin, proceed to fetch settings.
       const settingsRef = doc(firestore, 'app_settings', 'incident_config');
-
       try {
         const settingsSnap = await getDoc(settingsRef);
         if (settingsSnap.exists()) {
@@ -69,6 +67,7 @@ export default function SettingsPage() {
           });
           console.error("Error fetching settings:", error);
       } finally {
+        // We are done loading, regardless of the outcome.
         setIsLoading(false);
       }
     };
