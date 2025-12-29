@@ -9,7 +9,7 @@ service cloud.firestore {
     }
 
     function isOwner(userId) {
-        return request.auth.uid == userId;
+      return request.auth.uid == userId;
     }
     
     function isSuperAdmin() {
@@ -33,7 +33,9 @@ service cloud.firestore {
             return false;
         }
         let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
-        return 'assignedBranches' in userDoc.data && branchId in userDoc.data.assignedBranches;
+        // Check that assignedBranches is a map and the specific branchId key is set to true.
+        return 'assignedBranches' in userDoc.data 
+          && userDoc.data.assignedBranches[branchId] == true;
     }
     
     match /users/{userId} {
@@ -49,26 +51,21 @@ service cloud.firestore {
 
     match /branches/{branchId} {
       allow get: if isAssignedToBranch(branchId);
-      // Superadmin can list all branches. Regular users must query their specific branches.
+      // Superadmin can list all branches. Regular users must query their specific branches one by one.
       allow list: if isSuperAdmin();
       allow create, update, delete: if isSuperAdmin();
     }
 
     match /incidents/{incidentId} {
-      function getIncidentBranchId() {
-        // For a create operation, the branchId is in the incoming request data.
-        // For all other operations, it's in the existing document on the server.
-        return request.method == 'create' ? request.resource.data.branchId : resource.data.branchId;
-      }
-      
-      // Allow read/write to an incident if the user is assigned to the incident's branch.
-      // This 'get' rule is crucial. It will be applied to every document returned by a 'list' (query) operation.
-      allow get, write: if isAssignedToBranch(getIncidentBranchId());
-      
-      // Allow a 'list' (query) operation to proceed if the user is signed in.
-      // The security is then enforced by the 'get' rule on each individual document
-      // that the query tries to access. This is the key to making `where('branchId', 'in', ...)` work.
-      allow list: if isSignedIn();
+      // This single read rule covers both get (single doc) and list (queries).
+      // For queries, Firestore applies this rule to EACH document the query tries to return.
+      // If the user isn't assigned to a document's branchId, it's filtered out.
+      allow read: if isSignedIn() && isAssignedToBranch(resource.data.branchId);
+
+      // Create: check branchId from the incoming data.
+      allow create: if isSignedIn() && isAssignedToBranch(request.resource.data.branchId);
+      // Update/Delete: check branchId from the data already on the server.
+      allow update, delete: if isSignedIn() && isAssignedToBranch(resource.data.branchId);
     }
     
     match /app_settings/{settingId} {
