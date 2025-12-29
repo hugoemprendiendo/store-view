@@ -33,50 +33,52 @@ export default function SettingsPage() {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
 
   useEffect(() => {
-    const loadData = async () => {
-      if (isProfileLoading) {
-        return;
-      }
+    if (isProfileLoading) {
+      return; // Wait until the user profile is loaded
+    }
 
-      if (userProfile?.role !== 'superadmin') {
-        router.push('/');
-        return;
-      }
-      
-      if (firestore) {
-        setIsLoading(true);
-        const settingsRef = doc(firestore, 'app_settings', 'incident_config');
+    if (!userProfile) {
+      // This can happen briefly on logout, redirect to avoid errors
+      router.push('/');
+      return;
+    }
+    
+    if (userProfile.role !== 'superadmin') {
+      toast({
+          variant: 'destructive',
+          title: 'Acceso Denegado',
+          description: 'No tienes permisos para acceder a esta página.'
+      });
+      router.push('/');
+      return;
+    }
 
-        getDoc(settingsRef)
-          .then(settingsSnap => {
-            if (settingsSnap.exists()) {
-              setSettings(settingsSnap.data() as IncidentSettings);
-            } else {
-              setSettings({ categories: [], priorities: [], statuses: [] });
-            }
-          })
-          .catch(error => {
-            // Create and emit the detailed error for debugging
-            const permissionError = new FirestorePermissionError({
-              path: settingsRef.path,
-              operation: 'get',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            
-            // Still show a toast as a fallback
-            toast({
-              variant: 'destructive',
-              title: 'Error de Permisos',
-              description: 'No se pudo cargar la configuración. Revisa la consola para detalles.',
-            });
-          })
-          .finally(() => {
-            setIsLoading(false);
-          });
+    // Now that we know we're a superadmin, fetch the settings.
+    const loadSettings = async () => {
+      if (!firestore) return;
+      setIsLoading(true);
+      const settingsRef = doc(firestore, 'app_settings', 'incident_config');
+      try {
+        const settingsSnap = await getDoc(settingsRef);
+        if (settingsSnap.exists()) {
+          setSettings(settingsSnap.data() as IncidentSettings);
+        } else {
+          setSettings({ categories: [], priorities: [], statuses: [] });
+        }
+      } catch (error) {
+        console.error("Error fetching settings:", error);
+        toast({
+          variant: 'destructive',
+          title: 'Error al Cargar',
+          description: 'No se pudo cargar la configuración de la aplicación.',
+        });
+      } finally {
+        setIsLoading(false);
       }
     };
     
-    loadData();
+    loadSettings();
+
   }, [isProfileLoading, userProfile, firestore, router, toast]);
 
 
