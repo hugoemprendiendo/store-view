@@ -1,10 +1,9 @@
 'use client';
 import { Header } from '@/components/layout/header';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import type { Branch, Incident } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
-import { collection, query, where, getDocs, doc } from 'firebase/firestore';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useEffect, useState } from 'react';
 import { getBranchesByIds, getBranches, getIncidents, getIncidentsForUser } from '@/lib/data';
@@ -21,10 +20,11 @@ export default function DashboardPage() {
       if (isProfileLoading || !firestore) {
         return;
       }
+      
       if (!userProfile) {
-        setIsLoadingData(false);
         setBranches([]);
         setIncidents([]);
+        setIsLoadingData(false);
         return;
       }
 
@@ -43,6 +43,7 @@ export default function DashboardPage() {
           const branchIds = Object.keys(userProfile.assignedBranches);
           if (branchIds.length > 0) {
              branchesData = await getBranchesByIds(firestore, branchIds);
+             // Now that we have the branches, get the incidents for those branches
              incidentsData = await getIncidentsForUser(firestore, branchIds);
           }
         }
