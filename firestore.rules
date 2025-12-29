@@ -10,35 +10,27 @@ service cloud.firestore {
     function isOwner(userId) {
         return request.auth.uid == userId;
     }
-
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
-    function isSuperAdmin() {
-      return isSignedIn() && getUserData().role == 'superadmin';
-    }
     
     function isAssignedToBranch(branchId) {
-        let userDocData = getUserData();
-        return isSuperAdmin() || (
-            isSignedIn() &&
-            'assignedBranches' in userDocData &&
-            branchId in userDocData.assignedBranches
+        let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+        // Check if the user is a superadmin OR if the branchId is in their assignedBranches map.
+        return userDoc.data.role == 'superadmin' || (
+            'assignedBranches' in userDoc.data &&
+            branchId in userDoc.data.assignedBranches
         );
     }
     
     match /users/{userId} {
       allow create: if isOwner(userId);
-      allow get: if isOwner(userId) || isSuperAdmin();
-      allow list, update: if isSuperAdmin();
+      allow get: if isOwner(userId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superadmin';
+      allow list, update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superadmin';
       allow delete: if false; // Nobody can delete user profiles
     }
 
     match /branches/{branchId} {
       allow get: if isAssignedToBranch(branchId);
-      allow list: if isSuperAdmin();
-      allow create, update, delete: if isSuperAdmin();
+      allow list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superadmin';
+      allow create, update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superadmin';
     }
 
     match /incidents/{incidentId} {
@@ -48,7 +40,7 @@ service cloud.firestore {
       
       allow get, write: if isAssignedToBranch(getIncidentBranchId());
       
-      allow list: if isSuperAdmin() || (
+      allow list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superadmin' || (
         isSignedIn() &&
         'branchId' in request.query.where &&
         isAssignedToBranch(request.query.where.branchId)
@@ -57,7 +49,7 @@ service cloud.firestore {
     
     match /app_settings/{settingId} {
         allow get: if isSignedIn();
-        allow write: if isSuperAdmin();
+        allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superadmin';
     }
     
     // Rule for the test collection
