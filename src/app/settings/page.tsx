@@ -14,7 +14,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useFirestore } from '@/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { FirestorePermissionError } from '@/firebase/errors';
 
 const priorityTextMap: Record<string, string> = {
     Low: 'Baja',
@@ -27,8 +26,6 @@ export default function SettingsPage() {
   const [newCategory, setNewCategory] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [permissionError, setPermissionError] = useState<Error | null>(null);
-
 
   const { toast } = useToast();
   const firestore = useFirestore();
@@ -36,7 +33,6 @@ export default function SettingsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // This effect handles both routing and data fetching in a strict sequence.
     const loadData = async () => {
       // 1. Wait for the user profile to finish loading.
       if (isProfileLoading) {
@@ -47,17 +43,20 @@ export default function SettingsPage() {
       // 2. Once loading is done, check the user's role.
       if (!userProfile || userProfile.role !== 'superadmin') {
         router.push('/');
-        // Don't proceed to fetch data if the user is not an admin.
         return;
       }
       
       // 3. Only if the user is a superadmin and firestore is available, proceed to fetch settings.
-      if (!firestore) return;
+      if (!firestore) {
+        setIsLoading(false);
+        return;
+      }
       
       setIsLoading(true);
-      const settingsRef = doc(firestore, 'app_settings', 'incident_config');
-      
-      getDoc(settingsRef).then(settingsSnap => {
+      try {
+        const settingsRef = doc(firestore, 'app_settings', 'incident_config');
+        const settingsSnap = await getDoc(settingsRef);
+
         if (settingsSnap.exists()) {
           setSettings(settingsSnap.data() as IncidentSettings);
         } else {
@@ -67,23 +66,20 @@ export default function SettingsPage() {
             description: 'El documento de configuración de la aplicación no existe.',
           });
         }
+      } catch (error) {
+        console.error("Error fetching settings:", error);
+        toast({
+          variant: 'destructive',
+          title: 'Error al Cargar Configuración',
+          description: 'No se pudieron cargar los ajustes. Es posible que no tengas permisos.',
+        });
+      } finally {
         setIsLoading(false);
-      }).catch(error => {
-          // Create and emit the detailed error for debugging
-          const permissionError = new FirestorePermissionError({
-            path: settingsRef.path,
-            operation: 'get',
-          });
-          setPermissionError(permissionError);
-      });
+      }
     };
     
     loadData();
   }, [isProfileLoading, userProfile, firestore, router, toast]);
-
-  if (permissionError) {
-    throw permissionError;
-  }
 
   const handleSaveCategories = async (newCategories: string[]) => {
     if (!firestore || !settings) return;
