@@ -34,11 +34,10 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (isProfileLoading) {
-      return; // Wait until the user profile is loaded
+      return; 
     }
 
     if (!userProfile) {
-      // This can happen briefly on logout, redirect to avoid errors
       router.push('/');
       return;
     }
@@ -52,8 +51,7 @@ export default function SettingsPage() {
       router.push('/');
       return;
     }
-
-    // Now that we know we're a superadmin, fetch the settings.
+    
     const loadSettings = async () => {
       if (!firestore) return;
       setIsLoading(true);
@@ -90,25 +88,23 @@ export default function SettingsPage() {
     
     const settingsRef = doc(firestore, 'app_settings', 'incident_config');
     
-    setDoc(settingsRef, updatedSettings, { merge: true })
-      .then(() => {
-        setSettings(updatedSettings);
-        toast({
-          title: 'Categorías guardadas',
-          description: 'La lista de categorías ha sido actualizada.',
-        });
-      })
-      .catch(error => {
-        const permissionError = new FirestorePermissionError({
-          path: settingsRef.path,
-          operation: 'update',
-          requestResourceData: updatedSettings,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      })
-      .finally(() => {
-        setIsSaving(false);
+    try {
+      await setDoc(settingsRef, updatedSettings, { merge: true });
+      setSettings(updatedSettings);
+      toast({
+        title: 'Categorías guardadas',
+        description: 'La lista de categorías ha sido actualizada.',
       });
+    } catch(error) {
+       toast({
+          variant: 'destructive',
+          title: 'Error al Guardar',
+          description: 'No se pudieron guardar las categorías. Verifica tus permisos.',
+        });
+        console.error("Error saving categories:", error);
+    } finally {
+        setIsSaving(false);
+    }
   };
 
   const handleAddCategory = () => {

@@ -42,7 +42,7 @@ service cloud.firestore {
       allow create: if isCreatingOwnProfile(userId);
       // A user can always read their own profile. Superadmins can list/update any.
       allow get: if isOwner(userId);
-      allow list, update: if isSuperAdmin() || isOwner(userId);
+      allow list, update: if isSuperAdmin();
     }
 
     match /branches/{branchId} {
