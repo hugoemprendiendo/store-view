@@ -60,9 +60,9 @@ service cloud.firestore {
       // This 'get' rule is crucial. It will be applied to every document returned by a 'list' (query) operation.
       allow get, write: if isAssignedToBranch(getIncidentBranchId());
       
-      // Allow a 'list' (query) operation to proceed. The security is then enforced
-      // by the 'get' rule on each individual document the query tries to access.
-      // This is the key to making `where('branchId', 'in', ...)` work for non-admins.
+      // Allow a 'list' (query) operation to proceed if the user is signed in.
+      // The security is then enforced by the 'get' rule on each individual document
+      // that the query tries to access. This is the key to making `where('branchId', 'in', ...)` work.
       allow list: if isSignedIn();
     }
     
