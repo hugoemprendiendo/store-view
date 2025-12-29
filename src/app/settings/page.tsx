@@ -41,7 +41,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const loadData = async () => {
-      if (!firestore || userProfile?.role !== 'superadmin') {
+      if (!firestore || !userProfile || userProfile.role !== 'superadmin') {
         setIsLoading(false);
         return;
       }
@@ -53,21 +53,20 @@ export default function SettingsPage() {
         if (settingsSnap.exists()) {
           setSettings(settingsSnap.data() as IncidentSettings);
         } else {
-          // This should be seeded, but as a fallback:
-          const defaultSettings = { categories: [], priorities: ['Low', 'Medium', 'High'], statuses: ['Abierto', 'En Progreso', 'Resuelto'] };
-          setSettings(defaultSettings);
-          toast({
+          // The seed script in `data.ts` should handle creation.
+          // If it still doesn't exist, there's a deeper issue.
+           toast({
+            variant: 'destructive',
             title: 'Configuración no encontrada',
-            description: 'Creando documento de configuración inicial.'
+            description: 'El documento de configuración de la aplicación no existe. Por favor, contacta a soporte.',
           });
-          await setDoc(settingsRef, defaultSettings);
         }
       } catch (error) {
         console.error("Error fetching settings:", error);
         toast({
           variant: 'destructive',
           title: 'Error al Cargar',
-          description: 'No se pudo cargar la configuración de la aplicación.',
+          description: 'No se pudo cargar la configuración de la aplicación debido a un error de permisos o de red.',
         });
       } finally {
         setIsLoading(false);
