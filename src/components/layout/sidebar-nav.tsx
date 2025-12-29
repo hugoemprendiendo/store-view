@@ -57,15 +57,12 @@ export function SidebarNav() {
   return (
     <>
       <SidebarHeader className="p-4">
-        <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2">
-            <Store className="size-7 text-accent" />
-            <span className="text-xl font-bold text-foreground font-headline group-data-[collapsible=icon]:hidden">
-                StoreView
-            </span>
-            </Link>
-            <SidebarTrigger className="hidden md:flex" />
-        </div>
+        <Link href="/" className="flex items-center gap-2">
+          <Store className="size-7 text-accent" />
+          <span className="text-xl font-bold text-foreground font-headline group-data-[collapsible=icon]:hidden">
+              StoreView
+          </span>
+        </Link>
       </SidebarHeader>
       <SidebarContent>
         <SidebarMenu>
@@ -103,6 +100,14 @@ export function SidebarNav() {
             <SidebarMenuButton onClick={handleSignOut} tooltip="Cerrar sesión">
                 <LogOut />
                 <span>Cerrar sesión</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+             <SidebarMenuButton asChild>
+                <SidebarTrigger>
+                    <PanelLeft />
+                    <span>Colapsar</span>
+                </SidebarTrigger>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
