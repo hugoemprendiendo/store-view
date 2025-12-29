@@ -68,9 +68,6 @@ export function DashboardClient({ branches, incidents }: DashboardClientProps) {
   }, [branchesWithIncidents, selectedBrand, selectedRegion, selectedStatus]);
 
   const { criticalCount, warningCount, operationalCount } = useMemo(() => {
-    // This calculation now only considers branches visible to the user.
-    // For regular users, this will only show status if incident data is available,
-    // otherwise defaulting to 'ok'. For superadmins, it shows the real-time status.
     return branchesWithIncidents.reduce(
       (acc, { status }) => {
         if (status === 'error') {
