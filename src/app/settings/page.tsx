@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { X, Plus, Loader2, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { useFirestore } from '@/firebase';
+import { useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const priorityTextMap: Record<string, string> = {
@@ -33,42 +33,46 @@ export default function SettingsPage() {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
 
   useEffect(() => {
-    // This effect handles both fetching data and protecting the route.
     const loadData = async () => {
-      // 1. Wait for the user profile to finish loading.
       if (isProfileLoading) {
         return;
       }
 
-      // 2. Once loaded, check the user's role.
       if (userProfile?.role !== 'superadmin') {
-        // If not a superadmin, redirect and stop execution.
         router.push('/');
         return;
       }
       
-      // 3. If user is a superadmin, proceed to fetch settings from Firestore.
       if (firestore) {
         setIsLoading(true);
-        try {
-          const settingsRef = doc(firestore, 'app_settings', 'incident_config');
-          const settingsSnap = await getDoc(settingsRef);
-          if (settingsSnap.exists()) {
-            setSettings(settingsSnap.data() as IncidentSettings);
-          } else {
-            // Handle case where settings doc doesn't exist yet
-            setSettings({ categories: [], priorities: [], statuses: [] });
-          }
-        } catch (error) {
-           console.error("Failed to fetch settings:", error);
-           toast({
-             variant: 'destructive',
-             title: 'Error al Cargar',
-             description: 'No se pudo cargar la configuración de la aplicación.',
-           });
-        } finally {
-          setIsLoading(false);
-        }
+        const settingsRef = doc(firestore, 'app_settings', 'incident_config');
+
+        getDoc(settingsRef)
+          .then(settingsSnap => {
+            if (settingsSnap.exists()) {
+              setSettings(settingsSnap.data() as IncidentSettings);
+            } else {
+              setSettings({ categories: [], priorities: [], statuses: [] });
+            }
+          })
+          .catch(error => {
+            // Create and emit the detailed error for debugging
+            const permissionError = new FirestorePermissionError({
+              path: settingsRef.path,
+              operation: 'get',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            
+            // Still show a toast as a fallback
+            toast({
+              variant: 'destructive',
+              title: 'Error de Permisos',
+              description: 'No se pudo cargar la configuración. Revisa la consola para detalles.',
+            });
+          })
+          .finally(() => {
+            setIsLoading(false);
+          });
       }
     };
     
@@ -83,23 +87,26 @@ export default function SettingsPage() {
     const updatedSettings = { ...settings, categories: newCategories };
     
     const settingsRef = doc(firestore, 'app_settings', 'incident_config');
-    try {
-      await setDoc(settingsRef, updatedSettings, { merge: true });
-      setSettings(updatedSettings);
-      toast({
-        title: 'Categorías guardadas',
-        description: 'La lista de categorías ha sido actualizada.',
+    
+    setDoc(settingsRef, updatedSettings, { merge: true })
+      .then(() => {
+        setSettings(updatedSettings);
+        toast({
+          title: 'Categorías guardadas',
+          description: 'La lista de categorías ha sido actualizada.',
+        });
+      })
+      .catch(error => {
+        const permissionError = new FirestorePermissionError({
+          path: settingsRef.path,
+          operation: 'update',
+          requestResourceData: updatedSettings,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setIsSaving(false);
       });
-    } catch (error) {
-      console.error("Error saving categories:", error);
-      toast({
-        variant: 'destructive',
-        title: 'Error al Guardar',
-        description: 'No se pudieron guardar los cambios en las categorías.',
-      });
-    } finally {
-      setIsSaving(false);
-    }
   };
 
   const handleAddCategory = () => {
@@ -123,7 +130,6 @@ export default function SettingsPage() {
     handleSaveCategories(newCategories);
   };
   
-  // Combines initial profile loading and settings fetching
   const totalLoading = isProfileLoading || isLoading;
 
   if (totalLoading) {
@@ -137,8 +143,6 @@ export default function SettingsPage() {
     );
   }
 
-  // This will render if the user profile is loaded but they are not a superadmin,
-  // just before the redirection kicks in.
   if (userProfile?.role !== 'superadmin') {
     return (
         <div className="flex flex-col gap-4">
