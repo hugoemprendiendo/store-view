@@ -23,6 +23,10 @@ interface DashboardClientProps {
 type StatusFilter = 'error' | 'warning' | 'ok' | 'all';
 
 function getBranchStatus(branchIncidents: Incident[]): 'error' | 'warning' | 'ok' {
+    // If we have no incident data for a branch (e.g. for regular users), default to 'ok'
+    if (!branchIncidents || branchIncidents.length === 0) {
+      return 'ok';
+    }
     const hasOpen = branchIncidents.some((i) => i.status === 'Abierto');
     const hasInProgress = branchIncidents.some((i) => i.status === 'En Progreso');
 
@@ -64,6 +68,9 @@ export function DashboardClient({ branches, incidents }: DashboardClientProps) {
   }, [branchesWithIncidents, selectedBrand, selectedRegion, selectedStatus]);
 
   const { criticalCount, warningCount, operationalCount } = useMemo(() => {
+    // This calculation now only considers branches visible to the user.
+    // For regular users, this will only show status if incident data is available,
+    // otherwise defaulting to 'ok'. For superadmins, it shows the real-time status.
     return branchesWithIncidents.reduce(
       (acc, { status }) => {
         if (status === 'error') {
