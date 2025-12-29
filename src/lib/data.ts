@@ -84,21 +84,11 @@ export async function getBranches(firestore: Firestore): Promise<Branch[]> {
 
 export async function getBranchesByIds(firestore: Firestore, ids: string[]): Promise<Branch[]> {
   if (ids.length === 0) return [];
-  const branchesCol = collection(firestore, 'branches');
-  const chunks = [];
-  for (let i = 0; i < ids.length; i += 30) {
-      chunks.push(ids.slice(i, i + 30));
-  }
-
-  const branchPromises = chunks.map(chunk => {
-      const q = query(branchesCol, where('__name__', 'in', chunk));
-      return getDocs(q);
-  });
-  
-  const allSnapshots = await Promise.all(branchPromises);
-  const branchList = allSnapshots.flatMap(snapshot => snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Branch)));
-
-  return branchList;
+  const branchPromises = ids.map(id => getDoc(doc(firestore, 'branches', id)));
+  const branchSnapshots = await Promise.all(branchPromises);
+  return branchSnapshots
+      .filter(snap => snap.exists())
+      .map(snap => ({ id: snap.id, ...snap.data() } as Branch));
 }
 
 export async function getBranchById(firestore: Firestore, id: string): Promise<Branch | undefined> {
@@ -114,6 +104,28 @@ export async function getIncidents(firestore: Firestore): Promise<Incident[]> {
     const incidentsCol = collection(firestore, 'incidents');
     const incidentSnapshot = await getDocs(incidentsCol);
     return incidentSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
+}
+
+export async function getIncidentsForUser(firestore: Firestore, branchIds: string[]): Promise<Incident[]> {
+    if (branchIds.length === 0) {
+        return [];
+    }
+
+    // Use chunking to avoid hitting query limits if the user has many branches
+    const chunks: string[][] = [];
+    for (let i = 0; i < branchIds.length; i += 30) {
+        chunks.push(branchIds.slice(i, i + 30));
+    }
+
+    const allIncidents: Incident[] = [];
+    for (const chunk of chunks) {
+        const q = query(collection(firestore, 'incidents'), where('branchId', 'in', chunk));
+        const querySnapshot = await getDocs(q);
+        const incidents = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
+        allIncidents.push(...incidents);
+    }
+
+    return allIncidents;
 }
 
 export async function getIncidentById(firestore: Firestore, id: string): Promise<Incident | undefined> {

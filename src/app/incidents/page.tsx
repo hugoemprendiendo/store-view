@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import type { Branch, Incident } from '@/lib/types';
-import { getBranchesByIds, getBranches } from '@/lib/data';
+import { getBranchesByIds, getBranches, getIncidentsForUser } from '@/lib/data';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -10,9 +10,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { collection, query, where } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 
@@ -26,8 +25,9 @@ export default function IncidentsPage() {
   const firestore = useFirestore();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
 
+  const [incidents, setIncidents] = useState<Incident[]>([]);
   const [allUserBranches, setAllUserBranches] = useState<Branch[]>([]);
-  const [isLoadingBranches, setIsLoadingBranches] = useState(true);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Filters
   const [filterCategory, setFilterCategory] = useState('all');
@@ -37,99 +37,49 @@ export default function IncidentsPage() {
   const [filterBrand, setFilterBrand] = useState('all');
   const [filterBranchId, setFilterBranchId] = useState('all');
 
-  // Step 1: Fetch all branches a user has access to.
   useEffect(() => {
-    async function fetchBranches() {
-      if (!firestore || !userProfile) {
-        if (!isProfileLoading) {
-          setIsLoadingBranches(false);
-          setAllUserBranches([]);
+    async function fetchData() {
+        if (isProfileLoading || !firestore) {
+            return;
         }
-        return;
-      }
-      setIsLoadingBranches(true);
-      try {
-        let branchesData: Branch[] = [];
-        if (userProfile.role === 'superadmin') {
-          branchesData = await getBranches(firestore);
-        } else if (userProfile.assignedBranches && Object.keys(userProfile.assignedBranches).length > 0) {
-          const branchIds = Object.keys(userProfile.assignedBranches);
-          branchesData = await getBranchesByIds(firestore, branchIds);
-        }
-        setAllUserBranches(branchesData);
-      } catch (error) {
-        console.error("Error fetching branches: ", error);
-        setAllUserBranches([]);
-      } finally {
-        setIsLoadingBranches(false);
-      }
-    }
-    if (!isProfileLoading) {
-      fetchBranches();
-    }
-  }, [firestore, userProfile, isProfileLoading]);
-
-  // Step 2: Build a memoized list of branch IDs the user can access.
-  const accessibleBranchIds = useMemo(() => {
-      if (isLoadingBranches || allUserBranches.length === 0) return [];
-      return allUserBranches.map(b => b.id);
-  }, [isLoadingBranches, allUserBranches]);
-
-  // Step 3: Create a memoized query for incidents based on accessible branches.
-  const incidentsQuery = useMemoFirebase(() => {
-    if (!firestore || accessibleBranchIds.length === 0) return null;
-    
-    // Firestore 'in' queries are limited to 30 values.
-    // For this page, we must fetch all incidents, so we create multiple queries if needed.
-    // NOTE: This approach is not scalable for thousands of branches. 
-    // A better long-term solution would be server-side aggregation or a different data model.
-    // However, for up to a few hundred branches, this is acceptable.
-    const chunks = [];
-    for (let i = 0; i < accessibleBranchIds.length; i += 30) {
-        chunks.push(accessibleBranchIds.slice(i, i + 30));
-    }
-    
-    // Since useCollection doesn't support multiple queries, we'll fetch manually inside a useEffect.
-    // This is a trade-off for handling more than 30 branches.
-    return null;
-
-  }, [firestore, accessibleBranchIds]);
-  
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [isLoadingIncidents, setIsLoadingIncidents] = useState(true);
-
-  useEffect(() => {
-    async function fetchAllIncidents() {
-        if (!firestore || accessibleBranchIds.length === 0) {
+        if (!userProfile) {
+            setIsLoadingData(false);
+            setAllUserBranches([]);
             setIncidents([]);
-            setIsLoadingIncidents(false);
             return;
         }
 
-        setIsLoadingIncidents(true);
+        setIsLoadingData(true);
         try {
-            const chunks: string[][] = [];
-            for (let i = 0; i < accessibleBranchIds.length; i += 30) {
-                chunks.push(accessibleBranchIds.slice(i, i + 30));
-            }
+            let branchesData: Branch[] = [];
+            let incidentsData: Incident[] = [];
 
-            const incidentPromises = chunks.map(chunk => 
-                getDocs(query(collection(firestore, 'incidents'), where('branchId', 'in', chunk)))
-            );
-            
-            const incidentsSnapshots = await Promise.all(incidentPromises);
-            const incidentsData = incidentsSnapshots.flatMap(snap => snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident)));
+            if (userProfile.role === 'superadmin') {
+                branchesData = await getBranches(firestore);
+                if (branchesData.length > 0) {
+                    const allBranchIds = branchesData.map(b => b.id);
+                    incidentsData = await getIncidentsForUser(firestore, allBranchIds);
+                }
+            } else if (userProfile.assignedBranches) {
+                const branchIds = Object.keys(userProfile.assignedBranches);
+                if (branchIds.length > 0) {
+                    branchesData = await getBranchesByIds(firestore, branchIds);
+                    incidentsData = await getIncidentsForUser(firestore, branchIds);
+                }
+            }
+            setAllUserBranches(branchesData);
             setIncidents(incidentsData);
         } catch (error) {
-            console.error("Error fetching all incidents:", error);
+            console.error("Error fetching incidents page data:", error);
+            setAllUserBranches([]);
             setIncidents([]);
         } finally {
-            setIsLoadingIncidents(false);
+            setIsLoadingData(false);
         }
     }
-    // We run this effect whenever the list of accessible branches changes.
-    fetchAllIncidents();
-  }, [firestore, accessibleBranchIds]);
+    
+    fetchData();
+  }, [firestore, userProfile, isProfileLoading]);
 
 
   // --- Filtering Logic ---
@@ -165,11 +115,11 @@ export default function IncidentsPage() {
     });
 
     const branchesArray = Array.from(branchesInFilter.values());
-    const uniqueCategories = ['all', ...Array.from(new Set(incidents.map(i => i.category)))];
-    const uniqueStatuses = ['all', ...Array.from(new Set(incidents.map(i => i.status)))];
-    const uniquePriorities = ['all', ...Array.from(new Set(incidents.map(i => i.priority)))];
-    const uniqueRegions = ['all', ...Array.from(new Set(branchesArray.map(b => b.region)))];
-    const uniqueBrands = ['all', ...Array.from(new Set(branchesArray.map(b => b.brand)))];
+    const uniqueCategories = ['all', ...Array.from(new Set(incidents.map(i => i.category).filter(Boolean)))];
+    const uniqueStatuses = ['all', ...Array.from(new Set(incidents.map(i => i.status).filter(Boolean)))];
+    const uniquePriorities = ['all', ...Array.from(new Set(incidents.map(i => i.priority).filter(Boolean)))];
+    const uniqueRegions = ['all', ...Array.from(new Set(branchesArray.map(b => b.region).filter(Boolean)))];
+    const uniqueBrands = ['all', ...Array.from(new Set(branchesArray.map(b => b.brand).filter(Boolean)))];
   
     return {
       categories: uniqueCategories,
@@ -185,7 +135,7 @@ export default function IncidentsPage() {
     return filteredIncidents.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [filteredIncidents]);
 
-  const totalLoading = isProfileLoading || isLoadingBranches || isLoadingIncidents;
+  const totalLoading = isProfileLoading || isLoadingData;
 
   if (totalLoading) {
       return (

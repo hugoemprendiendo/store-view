@@ -7,67 +7,60 @@ import { Loader2 } from 'lucide-react';
 import { collection, query, where, getDocs, doc } from 'firebase/firestore';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useEffect, useState } from 'react';
-import { getBranchesByIds, getBranches } from '@/lib/data';
+import { getBranchesByIds, getBranches, getIncidents, getIncidentsForUser } from '@/lib/data';
 
 export default function DashboardPage() {
   const firestore = useFirestore();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
-
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [isLoadingBranches, setIsLoadingBranches] = useState(true);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
-  // Step 1: Fetch branches based on user profile
   useEffect(() => {
-    async function fetchBranches() {
-      if (!firestore || !userProfile) {
-        if (!isProfileLoading) {
-            setIsLoadingBranches(false);
-            setBranches([]);
-        }
+    async function fetchData() {
+      if (isProfileLoading || !firestore) {
+        return;
+      }
+      if (!userProfile) {
+        setIsLoadingData(false);
+        setBranches([]);
+        setIncidents([]);
         return;
       }
 
-      setIsLoadingBranches(true);
+      setIsLoadingData(true);
       try {
         let branchesData: Branch[] = [];
+        let incidentsData: Incident[] = [];
+
         if (userProfile.role === 'superadmin') {
-          branchesData = await getBranches(firestore);
-        } else if (userProfile.assignedBranches && Object.keys(userProfile.assignedBranches).length > 0) {
+          // Superadmin can fetch everything
+          [branchesData, incidentsData] = await Promise.all([
+            getBranches(firestore),
+            getIncidents(firestore),
+          ]);
+        } else if (userProfile.assignedBranches) {
           const branchIds = Object.keys(userProfile.assignedBranches);
-          branchesData = await getBranchesByIds(firestore, branchIds);
+          if (branchIds.length > 0) {
+             branchesData = await getBranchesByIds(firestore, branchIds);
+             incidentsData = await getIncidentsForUser(firestore, branchIds);
+          }
         }
         setBranches(branchesData);
+        setIncidents(incidentsData);
       } catch (e) {
-        console.error("Error fetching dashboard branches: ", e);
+        console.error("Error fetching dashboard data: ", e);
         setBranches([]);
+        setIncidents([]);
       } finally {
-        setIsLoadingBranches(false);
+        setIsLoadingData(false);
       }
     }
 
-    if (!isProfileLoading) {
-      fetchBranches();
-    }
+    fetchData();
   }, [firestore, userProfile, isProfileLoading]);
 
-  // Step 2: Create a memoized query for incidents based on fetched branches
-  const incidentsQuery = useMemoFirebase(() => {
-    if (!firestore || branches.length === 0) return null;
-    
-    const accessibleBranchIds = branches.map(b => b.id);
-    
-    // We can only query for 30 branch IDs at a time with 'in'
-    // For simplicity in this dashboard, we'll query for the first 30.
-    // The main incidents page will handle full pagination if needed.
-    const queryableBranchIds = accessibleBranchIds.slice(0, 30);
-    
-    return query(collection(firestore, 'incidents'), where('branchId', 'in', queryableBranchIds));
-  }, [firestore, branches]);
-
-  // Step 3: Use the useCollection hook to get incidents
-  const { data: incidents, isLoading: isLoadingIncidents } = useCollection<Incident>(incidentsQuery);
-  
-  const isLoading = isProfileLoading || isLoadingBranches;
+  const isLoading = isProfileLoading || isLoadingData;
 
   if (isLoading) {
     return (
@@ -84,7 +77,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <Header title="Panel de Control" />
-      <DashboardClient branches={branches} incidents={incidents || []} />
+      <DashboardClient branches={branches} incidents={incidents} />
     </div>
   );
 }
