@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useEffect, useState } from 'react';
 import { getBranchesByIds, getIncidentsForUser } from '@/lib/data';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection } from 'firebase/firestore';
 
 export default function DashboardPage() {
   const firestore = useFirestore();
