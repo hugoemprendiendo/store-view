@@ -140,29 +140,48 @@
       },
       "required": ["name", "email", "createdAt", "role"]
     },
-    "IncidentSettings": {
+    "IncidentCategory": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Incident Settings",
+      "title": "Incident Category",
       "type": "object",
-      "description": "Configuration for incident reporting, such as available categories, priorities, and statuses.",
+      "description": "Represents a single category for incidents.",
       "properties": {
-        "categories": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "List of available incident categories."
-        },
-        "priorities": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "List of available incident priorities."
-        },
-        "statuses": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "List of available incident statuses."
+        "name": {
+          "type": "string",
+          "description": "The name of the category."
         }
       },
-      "required": ["categories", "priorities", "statuses"]
+      "required": ["name"]
+    },
+    "IncidentPriority": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Incident Priority",
+      "type": "object",
+      "description": "Represents a single priority level for incidents.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the priority (e.g., Low, Medium, High)."
+        },
+        "level": {
+            "type": "number",
+            "description": "A numerical level for sorting (e.g., 1 for Low, 2 for Medium, 3 for High)."
+        }
+      },
+      "required": ["name", "level"]
+    },
+    "IncidentStatus": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Incident Status",
+      "type": "object",
+      "description": "Represents a single status for incidents.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the status (e.g., Abierto, En Progreso)."
+        }
+      },
+      "required": ["name"]
     }
   },
   "auth": {
@@ -196,11 +215,23 @@
         },
         "description": "Stores user profile information."
     },
-    "/app_settings/incident_config": {
+    "/incident_categories/{categoryId}": {
         "schema": {
-            "$ref": "#/entities/IncidentSettings"
+            "$ref": "#/entities/IncidentCategory"
         },
-        "description": "Stores the global configuration for incident categories, priorities, and statuses."
+        "description": "Stores all available incident categories."
+    },
+    "/incident_priorities/{priorityId}": {
+        "schema": {
+            "$ref": "#/entities/IncidentPriority"
+        },
+        "description": "Stores all available incident priorities."
+    },
+    "/incident_statuses/{statusId}": {
+        "schema": {
+            "$ref": "#/entities/IncidentStatus"
+        },
+        "description": "Stores all available incident statuses."
     }
   }
 }

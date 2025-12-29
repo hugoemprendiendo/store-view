@@ -13,8 +13,7 @@ import { X, Plus, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useFirestore } from '@/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { getIncidentSettings } from '@/lib/data';
+import { getIncidentSettings, addIncidentCategory, deleteIncidentCategory } from '@/lib/data';
 
 const priorityTextMap: Record<string, string> = {
     Low: 'Baja',
@@ -33,94 +32,92 @@ export default function SettingsPage() {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
   const router = useRouter();
 
+  const loadData = async () => {
+    if (!firestore) return;
+    
+    setIsLoading(true);
+    try {
+      const settingsData = await getIncidentSettings(firestore);
+      setSettings(settingsData);
+    } catch (error: any) {
+      console.error("Error fetching settings:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Error al Cargar',
+        description: 'No se pudieron cargar los ajustes.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadData = async () => {
-      // 1. Wait for auth and firestore to be ready.
-      if (isProfileLoading || !firestore) {
-        return;
-      }
+    if (isProfileLoading) return;
 
-      // 2. Auth is ready. Check if user is logged in and is a superadmin.
-      if (!userProfile) {
-          router.push('/');
-          setIsLoading(false);
-          return;
-      }
-      
-      if (userProfile.role !== 'superadmin') {
-        // If not, redirect and stop loading.
-        router.push('/');
-        setIsLoading(false);
-        return;
-      }
-
-      // 3. User is a superadmin. Fetch settings using the data function.
-      // This function now handles creation if the doc doesn't exist.
-      try {
-        const settingsData = await getIncidentSettings(firestore);
-        setSettings(settingsData);
-      } catch (error: any) {
-         console.error("Error fetching settings:", error);
-         toast({
-            variant: 'destructive',
-            title: 'Error al Cargar',
-            description: 'No se pudieron cargar los ajustes. Es posible que no tengas permisos.',
-        });
-      } finally {
-        // 4. In any case, stop the loading indicator.
-        setIsLoading(false);
-      }
-    };
+    if (!userProfile) {
+      router.push('/login');
+      return;
+    }
+    
+    if (userProfile.role !== 'superadmin') {
+      router.push('/');
+      return;
+    }
     
     loadData();
   }, [isProfileLoading, userProfile, firestore, router, toast]);
 
-  const handleSaveCategories = async (newCategories: string[]) => {
+  const handleAddCategory = async () => {
     if (!firestore || !settings) return;
-    
-    setIsSaving(true);
-    const updatedSettings = { ...settings, categories: newCategories };
-    
-    const settingsRef = doc(firestore, 'app_settings', 'incident_config');
-    
-    try {
-        await setDoc(settingsRef, updatedSettings, { merge: true });
-        setSettings(updatedSettings);
-        toast({
-            title: 'Categorías guardadas',
-            description: 'La lista de categorías ha sido actualizada.',
-        });
-    } catch (error) {
+    if (newCategory && !settings.categories.find(c => c.name.toLowerCase() === newCategory.toLowerCase())) {
+        setIsSaving(true);
+        try {
+            await addIncidentCategory(firestore, newCategory);
+            setNewCategory('');
+            toast({
+                title: 'Categoría Agregada',
+                description: `La categoría "${newCategory}" ha sido creada.`,
+            });
+            await loadData(); // Recargar datos para mostrar la nueva categoría
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Error al Guardar',
+                description: 'No tienes permisos para agregar categorías.',
+            });
+            console.error("Error adding category:", error);
+        } finally {
+            setIsSaving(false);
+        }
+    } else if (settings.categories.find(c => c.name.toLowerCase() === newCategory.toLowerCase())) {
         toast({
             variant: 'destructive',
-            title: 'Error al Guardar',
-            description: 'No tienes permisos para guardar las categorías.',
+            title: 'Categoría Duplicada',
+            description: 'Esta categoría ya existe.',
         });
-        console.error("Error saving categories:", error);
+    }
+  };
+
+  const handleRemoveCategory = async (categoryId: string, categoryName: string) => {
+    if (!firestore) return;
+    setIsSaving(true);
+    try {
+        await deleteIncidentCategory(firestore, categoryId);
+        toast({
+            title: 'Categoría Eliminada',
+            description: `La categoría "${categoryName}" ha sido eliminada.`,
+        });
+        await loadData(); // Recargar datos
+    } catch (error) {
+         toast({
+            variant: 'destructive',
+            title: 'Error al Eliminar',
+            description: 'No tienes permisos para eliminar categorías.',
+        });
+        console.error("Error deleting category:", error);
     } finally {
         setIsSaving(false);
     }
-  };
-
-  const handleAddCategory = () => {
-    if (!settings) return;
-    if (newCategory && !settings.categories.includes(newCategory)) {
-      const newCategories = [...settings.categories, newCategory];
-      handleSaveCategories(newCategories);
-      setNewCategory('');
-    } else if (settings.categories.includes(newCategory)) {
-      toast({
-        variant: 'destructive',
-        title: 'Categoría Duplicada',
-        description: 'Esta categoría ya existe.',
-      });
-    }
-  };
-
-  const handleRemoveCategory = (categoryToRemove: string) => {
-    if (!settings) return;
-    const newCategories = settings.categories.filter(category => category !== categoryToRemove);
-    handleSaveCategories(newCategories);
   };
   
   if (isLoading || isProfileLoading) {
@@ -134,14 +131,11 @@ export default function SettingsPage() {
     );
   }
 
-  // If loading is complete but there's no profile or the user is not an admin,
-  // we show nothing, as the redirect is already happening.
   if (!userProfile || userProfile.role !== 'superadmin') {
       return null;
   }
   
   if (!settings) {
-    // This case should be rare now, but it's good practice to handle it.
     return (
          <div className="flex flex-col gap-6">
             <Header title="Configuración" />
@@ -176,20 +170,20 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-2">
-                {settings && settings.categories.map(category => (
-                  <Badge key={category} variant="secondary" className="text-base pr-2">
-                    {category}
+                {settings.categories.map(category => (
+                  <Badge key={category.id} variant="secondary" className="text-base pr-2">
+                    {category.name}
                     <button 
-                      onClick={() => handleRemoveCategory(category)} 
+                      onClick={() => handleRemoveCategory(category.id, category.name)} 
                       className="ml-2 rounded-full hover:bg-muted-foreground/20 p-0.5"
                       disabled={isSaving}
                     >
                       <X className="h-3 w-3" />
-                      <span className="sr-only">Eliminar {category}</span>
+                      <span className="sr-only">Eliminar {category.name}</span>
                     </button>
                   </Badge>
                 ))}
-                {settings && settings.categories.length === 0 && (
+                {settings.categories.length === 0 && (
                     <p className="text-sm text-muted-foreground">No hay categorías definidas.</p>
                 )}
               </div>
@@ -217,10 +211,10 @@ export default function SettingsPage() {
               <CardDescription>Estos son los niveles de prioridad para una incidencia. (Solo lectura)</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
-              {settings && settings.priorities.map(priority => (
-                <Badge key={priority} variant={
-                  priority === 'High' ? 'destructive' : priority === 'Medium' ? 'default' : 'secondary'
-                } className="text-base">{priorityTextMap[priority] || priority}</Badge>
+              {settings.priorities.map(priority => (
+                <Badge key={priority.id} variant={
+                  priority.name === 'High' ? 'destructive' : priority.name === 'Medium' ? 'default' : 'secondary'
+                } className="text-base">{priorityTextMap[priority.name] || priority.name}</Badge>
               ))}
             </CardContent>
           </Card>
@@ -232,8 +226,8 @@ export default function SettingsPage() {
               <CardDescription>Este es el ciclo de vida de un reporte de incidencia. (Solo lectura)</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
-              {settings && settings.statuses.map(status => (
-                <Badge key={status} variant="secondary" className="text-base">{status}</Badge>
+              {settings.statuses.map(status => (
+                <Badge key={status.id} variant="secondary" className="text-base">{status.name}</Badge>
               ))}
             </CardContent>
           </Card>

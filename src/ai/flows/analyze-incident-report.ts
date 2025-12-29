@@ -53,9 +53,9 @@ const analyzeIncidentReportPrompt = ai.definePrompt({
   Basado en la información proporcionada (foto, audio, texto), sugiere un título, categoría, prioridad, estado y una descripción detallada y estructurada para el reporte de incidencia. Todos los campos de salida DEBEN estar en español.
   La descripción debe resumir toda la evidencia proporcionada.
 
-  Al determinar la categoría, DEBES elegir uno de los siguientes valores: {{{JSON.stringify incidentSettings.categories}}}.
+  Al determinar la categoría, DEBES elegir uno de los siguientes valores: {{{JSON.stringify incidentSettings.categories.map(c => c.name)}}}.
 
-  Al determinar la prioridad, usa la siguiente lógica y asegúrate de devolver solo uno de los valores {{{JSON.stringify incidentSettings.priorities}}}:
+  Al determinar la prioridad, usa la siguiente lógica y asegúrate de devolver solo uno de los valores {{{JSON.stringify incidentSettings.priorities.map(p => p.name)}}}:
   - Prioridad 'High': Si la incidencia impide que la tienda opere.
   - Prioridad 'Medium': Si la tienda puede operar, pero con problemas o de forma limitada.
   - Prioridad 'Low': Si la incidencia no afecta la operación principal de la tienda.

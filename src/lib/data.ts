@@ -9,36 +9,54 @@ import {
   writeBatch,
   Firestore,
   setDoc,
+  orderBy,
+  addDoc,
+  deleteDoc,
 } from 'firebase/firestore';
-import type { Branch, Incident, IncidentSettings } from './types';
-import { getInitialBranches, getInitialIncidents } from './seed-data';
+import type { Branch, Incident, IncidentCategory, IncidentPriority, IncidentSettings, IncidentStatus } from './types';
+import { getInitialBranches, getInitialIncidents, defaultCategories, defaultPriorities, defaultStatuses } from './seed-data';
 
-// Default settings in case the document doesn't exist
-const defaultIncidentSettings: IncidentSettings = {
-  categories: [
-    'Equipo de Cocina',
-    'Punto de Venta (POS)',
-    'Área de Cliente',
-    'Drive-Thru',
-    'Seguridad Alimentaria',
-    'Empleado',
-    'Instalaciones',
-    'Otro',
-  ],
-  priorities: ['Low', 'Medium', 'High'],
-  statuses: ['Abierto', 'En Progreso', 'Resuelto'],
-};
 
-// This is a one-time setup to seed the database if it's empty.
-// In a real application, this would be handled by a proper migration or setup script.
 export async function seedDatabase(firestore: Firestore) {
-  // Seed Incident Settings
-  const settingsRef = doc(firestore, 'app_settings', 'incident_config');
-  const settingsSnap = await getDoc(settingsRef);
-  if (!settingsSnap.exists()) {
-    console.log('Seeding incident settings...');
-    await setDoc(settingsRef, defaultIncidentSettings);
+  // Seed Incident Categories
+  const categoriesCollection = collection(firestore, 'incident_categories');
+  const categoriesSnapshot = await getDocs(categoriesCollection);
+  if (categoriesSnapshot.empty) {
+    console.log('Seeding incident categories...');
+    const batch = writeBatch(firestore);
+    defaultCategories.forEach((categoryName) => {
+      const docRef = doc(categoriesCollection);
+      batch.set(docRef, { name: categoryName });
+    });
+    await batch.commit();
   }
+
+  // Seed Incident Priorities
+  const prioritiesCollection = collection(firestore, 'incident_priorities');
+  const prioritiesSnapshot = await getDocs(prioritiesCollection);
+  if (prioritiesSnapshot.empty) {
+    console.log('Seeding incident priorities...');
+    const batch = writeBatch(firestore);
+    defaultPriorities.forEach((priority) => {
+        const docRef = doc(prioritiesCollection);
+        batch.set(docRef, priority);
+    });
+    await batch.commit();
+  }
+  
+  // Seed Incident Statuses
+  const statusesCollection = collection(firestore, 'incident_statuses');
+  const statusesSnapshot = await getDocs(statusesCollection);
+  if (statusesSnapshot.empty) {
+    console.log('Seeding incident statuses...');
+    const batch = writeBatch(firestore);
+    defaultStatuses.forEach((statusName) => {
+        const docRef = doc(statusesCollection);
+        batch.set(docRef, { name: statusName });
+    });
+    await batch.commit();
+  }
+
 
   // Seed Branches
   const branchesCollection = collection(firestore, 'branches');
@@ -168,15 +186,77 @@ export async function getIncidentsByBranch(firestore: Firestore, branchId: strin
     return incidentSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
 }
 
+// --- New Incident Settings Functions ---
+
+export async function getIncidentCategories(firestore: Firestore): Promise<IncidentCategory[]> {
+    const categoriesCol = collection(firestore, 'incident_categories');
+    const q = query(categoriesCol, orderBy('name'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as IncidentCategory));
+}
+
+export async function addIncidentCategory(firestore: Firestore, name: string): Promise<IncidentCategory> {
+    const categoriesCol = collection(firestore, 'incident_categories');
+    const docRef = await addDoc(categoriesCol, { name });
+    return { id: docRef.id, name };
+}
+
+export async function deleteIncidentCategory(firestore: Firestore, id: string): Promise<void> {
+    const categoryRef = doc(firestore, 'incident_categories', id);
+    await deleteDoc(categoryRef);
+}
+
+
+export async function getIncidentPriorities(firestore: Firestore): Promise<IncidentPriority[]> {
+    const prioritiesCol = collection(firestore, 'incident_priorities');
+    const q = query(prioritiesCol, orderBy('level'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as IncidentPriority));
+}
+
+export async function getIncidentStatuses(firestore: Firestore): Promise<IncidentStatus[]> {
+    const statusesCol = collection(firestore, 'incident_statuses');
+    const q = query(statusesCol, orderBy('name'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as IncidentStatus));
+}
+
 export async function getIncidentSettings(firestore: Firestore): Promise<IncidentSettings> {
-    const settingsRef = doc(firestore, 'app_settings', 'incident_config');
-    const settingsSnap = await getDoc(settingsRef);
-    if (settingsSnap.exists()) {
-        return settingsSnap.data() as IncidentSettings;
+    // This function now orchestrates fetching from the three separate collections.
+    try {
+        const [categories, priorities, statuses] = await Promise.all([
+            getIncidentCategories(firestore),
+            getIncidentPriorities(firestore),
+            getIncidentStatuses(firestore)
+        ]);
+
+        // If any of the collections are empty, it might be the first run.
+        // The seedDatabase function should handle populating them.
+        // For now, we return what we have. If they are empty, the app should handle it gracefully.
+        if (categories.length === 0 || priorities.length === 0 || statuses.length === 0) {
+            console.log("One or more incident settings collections are empty. Attempting to seed...");
+            await seedDatabase(firestore);
+            // Re-fetch after seeding
+            const [seededCategories, seededPriorities, seededStatuses] = await Promise.all([
+                getIncidentCategories(firestore),
+                getIncidentPriorities(firestore),
+                getIncidentStatuses(firestore)
+            ]);
+             return {
+                categories: seededCategories,
+                priorities: seededPriorities,
+                statuses: seededStatuses,
+            };
+        }
+
+        return { categories, priorities, statuses };
+    } catch (error) {
+        console.error("Error fetching incident settings from collections:", error);
+        // In case of an error, we can return an empty or default structure
+        return {
+            categories: [],
+            priorities: [],
+            statuses: [],
+        };
     }
-    
-    // If it doesn't exist, create it with default values and return them.
-    console.log("Incident settings not found, creating with default values...");
-    await setDoc(settingsRef, defaultIncidentSettings);
-    return defaultIncidentSettings;
 }

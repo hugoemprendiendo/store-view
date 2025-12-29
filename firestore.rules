@@ -67,8 +67,18 @@ service cloud.firestore {
       allow update, delete: if isAssignedToBranch(resource.data.branchId);
     }
     
-    match /app_settings/{settingId} {
-        allow get: if isSignedIn();
+    match /incident_categories/{categoryId} {
+        allow read: if isSignedIn();
+        allow write: if isSuperAdmin();
+    }
+
+    match /incident_priorities/{priorityId} {
+        allow read: if isSignedIn();
+        allow write: if isSuperAdmin();
+    }
+
+    match /incident_statuses/{statusId} {
+        allow read: if isSignedIn();
         allow write: if isSuperAdmin();
     }
 

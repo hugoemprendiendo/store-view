@@ -31,10 +31,26 @@ export type UserProfile = {
   assignedBranches?: Record<string, boolean>;
 }
 
+export type IncidentCategory = {
+  id: string;
+  name: string;
+}
+
+export type IncidentPriority = {
+    id: string;
+    name: 'Low' | 'Medium' | 'High';
+    level: number;
+}
+
+export type IncidentStatus = {
+    id: string;
+    name: string;
+}
+
 export type IncidentSettings = {
-  categories: string[];
-  priorities: ('Low' | 'Medium' | 'High')[];
-  statuses: string[];
+  categories: IncidentCategory[];
+  priorities: IncidentPriority[];
+  statuses: IncidentStatus[];
 }
 
 // These are now fallbacks or defaults, the source of truth is in Firestore.
@@ -51,4 +67,4 @@ export const IncidentCategories = [
 export const IncidentPriorities = ['Low', 'Medium', 'High'] as const;
 export const IncidentStatuses = ['Abierto', 'En Progreso', 'Resuelto'];
 
-export type IncidentStatus = 'ok' | 'warning' | 'error';
+export type IncidentBranchStatus = 'ok' | 'warning' | 'error';

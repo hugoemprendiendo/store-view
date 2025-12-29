@@ -28,10 +28,11 @@ interface IncidentReviewFormProps {
   onSuccess: (incidentId: string, branchId: string) => void;
 }
 
-// Helper function to find a value in an array, ignoring case.
-const findCaseInsensitive = (array: readonly string[], value: string): string | undefined => {
+// Helper function to find a value in an array of objects, ignoring case.
+const findInObjects = (array: { name: string }[], value: string): string | undefined => {
   if (!value) return undefined;
-  return array.find(item => item.toLowerCase() === value.toLowerCase());
+  const found = array.find(item => item.name.toLowerCase() === value.toLowerCase());
+  return found?.name;
 }
 
 export function IncidentReviewForm({ initialData, incidentSettings, onSuccess }: IncidentReviewFormProps) {
@@ -48,8 +49,8 @@ export function IncidentReviewForm({ initialData, incidentSettings, onSuccess }:
     audioTranscription: z.string().optional(),
     photoUrl: z.string().optional(),
     category: z.string().min(1, 'La categoría es obligatoria.'),
-    priority: z.enum(incidentSettings.priorities as [string, ...string[]]),
-    status: z.enum(incidentSettings.statuses as [string, ...string[]]).default('Abierto'),
+    priority: z.enum(incidentSettings.priorities.map(p => p.name) as [string, ...string[]]),
+    status: z.enum(incidentSettings.statuses.map(s => s.name) as [string, ...string[]]).default('Abierto'),
   });
 
   type IncidentFormValues = z.infer<typeof incidentSchema>;
@@ -59,8 +60,8 @@ export function IncidentReviewForm({ initialData, incidentSettings, onSuccess }:
     defaultValues: {
       branchId: branchId || '',
       title: initialData.suggestedTitle || '',
-      category: findCaseInsensitive(incidentSettings.categories, initialData.suggestedCategory) || '',
-      priority: (findCaseInsensitive(incidentSettings.priorities, initialData.suggestedPriority as any) as any) || 'Medium',
+      category: findInObjects(incidentSettings.categories, initialData.suggestedCategory) || '',
+      priority: (findInObjects(incidentSettings.priorities, initialData.suggestedPriority as any) as any) || 'Medium',
       status: 'Abierto',
       description: initialData.suggestedDescription || '',
       audioTranscription: initialData.audioTranscription || '',
@@ -171,7 +172,7 @@ export function IncidentReviewForm({ initialData, incidentSettings, onSuccess }:
                     </FormControl>
                     <SelectContent>
                       {incidentSettings.categories.map((cat) => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -193,7 +194,7 @@ export function IncidentReviewForm({ initialData, incidentSettings, onSuccess }:
                     </FormControl>
                     <SelectContent>
                       {incidentSettings.priorities.map((p) => (
-                        <SelectItem key={p} value={p}>{p === 'High' ? 'Alta' : p === 'Medium' ? 'Media' : 'Baja'}</SelectItem>
+                        <SelectItem key={p.id} value={p.name}>{p.name === 'High' ? 'Alta' : p.name === 'Medium' ? 'Media' : 'Baja'}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

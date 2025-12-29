@@ -1,9 +1,33 @@
-import type { Branch, Incident } from './types';
+import type { Branch, Incident, IncidentPriority } from './types';
 import { PlaceHolderImages } from './placeholder-images';
 
 function getImage(id: string) {
   return PlaceHolderImages.find((img) => img.id === id);
 }
+
+export const defaultCategories = [
+    'Equipo de Cocina',
+    'Punto de Venta (POS)',
+    'Área de Cliente',
+    'Drive-Thru',
+    'Seguridad Alimentaria',
+    'Empleado',
+    'Instalaciones',
+    'Otro',
+];
+
+export const defaultPriorities: Omit<IncidentPriority, 'id'>[] = [
+    { name: 'Low', level: 1 },
+    { name: 'Medium', level: 2 },
+    { name: 'High', level: 3 },
+];
+
+export const defaultStatuses = [
+    'Abierto',
+    'En Progreso',
+    'Resuelto'
+];
+
 
 export function getInitialBranches(): Omit<Branch, 'id'>[] {
     return [
