@@ -77,8 +77,7 @@ service cloud.firestore {
      match /app_settings/{settingId} {
         // Any signed-in user can read the settings (needed for forms), 
         // but only superadmins can write them.
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
+        allow get, list: if isSignedIn();
         allow write: if isSuperAdmin();
      }
   }
