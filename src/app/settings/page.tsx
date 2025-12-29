@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { X, Plus, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { useFirestore } from '@/firebase';
+import { useFirestore, FirestorePermissionError } from '@/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const priorityTextMap: Record<string, string> = {
@@ -34,29 +34,23 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const loadData = async () => {
-      // 1. Wait for the user profile to finish loading.
-      if (isProfileLoading) {
+      // 1. Wait for auth and profile to be resolved.
+      if (isProfileLoading || !firestore) {
         setIsLoading(true);
         return;
       }
 
-      // 2. Once loading is done, check the user's role.
+      // 2. If loading is finished, check the role.
       if (!userProfile || userProfile.role !== 'superadmin') {
         router.push('/');
-        return;
+        return; // Stop execution if not a superadmin
       }
       
-      // 3. Only if the user is a superadmin and firestore is available, proceed to fetch settings.
-      if (!firestore) {
-        setIsLoading(false);
-        return;
-      }
-      
+      // 3. Only superadmins proceed to fetch settings.
       setIsLoading(true);
-      try {
-        const settingsRef = doc(firestore, 'app_settings', 'incident_config');
-        const settingsSnap = await getDoc(settingsRef);
+      const settingsRef = doc(firestore, 'app_settings', 'incident_config');
 
+      getDoc(settingsRef).then(settingsSnap => {
         if (settingsSnap.exists()) {
           setSettings(settingsSnap.data() as IncidentSettings);
         } else {
@@ -66,16 +60,16 @@ export default function SettingsPage() {
             description: 'El documento de configuración de la aplicación no existe.',
           });
         }
-      } catch (error) {
-        console.error("Error fetching settings:", error);
-        toast({
-          variant: 'destructive',
-          title: 'Error al Cargar Configuración',
-          description: 'No se pudieron cargar los ajustes. Es posible que no tengas permisos.',
-        });
-      } finally {
         setIsLoading(false);
-      }
+      }).catch(error => {
+          // Create and emit the detailed error for debugging
+          const permissionError = new FirestorePermissionError({
+            path: settingsRef.path,
+            operation: 'get',
+          });
+          // Throw the error to be caught by the Next.js overlay
+          throw permissionError;
+      });
     };
     
     loadData();
