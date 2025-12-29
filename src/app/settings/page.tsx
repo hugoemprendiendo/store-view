@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useFirestore } from '@/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const priorityTextMap: Record<string, string> = {
     Low: 'Baja',
@@ -26,6 +27,8 @@ export default function SettingsPage() {
   const [newCategory, setNewCategory] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [permissionError, setPermissionError] = useState<Error | null>(null);
+
 
   const { toast } = useToast();
   const firestore = useFirestore();
@@ -51,32 +54,36 @@ export default function SettingsPage() {
       // 3. Only if the user is a superadmin and firestore is available, proceed to fetch settings.
       if (!firestore) return;
       
+      setIsLoading(true);
       const settingsRef = doc(firestore, 'app_settings', 'incident_config');
-      try {
-        const settingsSnap = await getDoc(settingsRef);
+      
+      getDoc(settingsRef).then(settingsSnap => {
         if (settingsSnap.exists()) {
           setSettings(settingsSnap.data() as IncidentSettings);
         } else {
            toast({
             variant: 'destructive',
             title: 'Configuración no encontrada',
-            description: 'El documento de configuración de la aplicación no existe. Por favor, contacta a soporte.',
+            description: 'El documento de configuración de la aplicación no existe.',
           });
         }
-      } catch(error: any) {
-         toast({
-            variant: 'destructive',
-            title: 'Error de Permisos',
-            description: 'No se pudo cargar la configuración. ' + error.message,
-        });
-      } finally {
-          setIsLoading(false);
-      }
+        setIsLoading(false);
+      }).catch(error => {
+          // Create and emit the detailed error for debugging
+          const permissionError = new FirestorePermissionError({
+            path: settingsRef.path,
+            operation: 'get',
+          });
+          setPermissionError(permissionError);
+      });
     };
     
     loadData();
   }, [isProfileLoading, userProfile, firestore, router, toast]);
 
+  if (permissionError) {
+    throw permissionError;
+  }
 
   const handleSaveCategories = async (newCategories: string[]) => {
     if (!firestore || !settings) return;
