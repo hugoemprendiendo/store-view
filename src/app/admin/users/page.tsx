@@ -38,12 +38,6 @@ export default function UsersPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!isProfileLoading) {
-      if (!userProfile || userProfile.role !== 'superadmin') {
-        router.push('/');
-        return;
-      }
-
       async function fetchData() {
         if (!firestore) return;
         setIsLoading(true);
@@ -67,7 +61,7 @@ export default function UsersPage() {
       }
 
       fetchData();
-    }
+    
   }, [firestore, isProfileLoading, userProfile, router]);
   
   const totalLoading = isLoading || isProfileLoading;
@@ -76,7 +70,6 @@ export default function UsersPage() {
     setUsers(currentUsers => 
         currentUsers.map(u => u.id === updatedUser.id ? updatedUser : u)
     );
-    // Refresh the page to reflect changes across the app without a full reload
     router.refresh();
   };
 
@@ -88,21 +81,6 @@ export default function UsersPage() {
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       </div>
-    );
-  }
-
-  if (userProfile?.role !== 'superadmin') {
-     return (
-        <div className="flex flex-col gap-4">
-            <Header title="Acceso Denegado" />
-            <div className="flex flex-col items-center justify-center gap-6 rounded-lg border bg-card text-card-foreground shadow-sm p-10 text-center">
-                <ShieldAlert className="size-16 text-destructive" />
-                <h2 className="text-2xl font-bold">Acceso Restringido</h2>
-                <p className="text-muted-foreground">
-                    No tienes permisos de superadministrador para ver esta página.
-                </p>
-            </div>
-        </div>
     );
   }
 

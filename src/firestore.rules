@@ -7,71 +7,28 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isCreatingOwnProfile(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
-    }
-
-    function isSuperAdmin() {
-      // Check for the existence of the user document and then check the role property.
-      // This function relies on the user having read access to their own document.
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
-          && getUserData(request.auth.uid).role == 'superadmin';
-    }
-    
     function isOwner(userId) {
         return request.auth.uid == userId;
     }
 
-    function isAssignedToBranch(branchId) {
-      // Return true if the user is a superadmin.
-      if (isSuperAdmin()) {
-        return true;
-      }
-      
-      // For regular users, check if the branchId key exists in their assignedBranches map.
-      let userDocData = getUserData(request.auth.uid);
-      return isSignedIn() && 
-             'assignedBranches' in userDocData && 
-             branchId in userDocData.assignedBranches;
-    }
-
     match /users/{userId} {
-      allow create: if isCreatingOwnProfile(userId);
-      // A user MUST be able to read their own document for isSuperAdmin() to work.
+      allow create: if isOwner(userId);
       allow get: if isOwner(userId);
-      // Listing and updating is restricted to superadmins.
-      allow list, update: if isSuperAdmin();
+      allow update: if isOwner(userId);
+      allow list: if isSignedIn(); // Allow list for signed in users for now
     }
 
     match /branches/{branchId} {
-      allow list: if isSuperAdmin();
-      allow get: if isAssignedToBranch(branchId);
-      allow write: if isSuperAdmin();
+      allow read, write: if isSignedIn();
     }
 
     match /incidents/{incidentId} {
-      function getBranchIdForIncident() {
-        return request.method == 'create' ? request.resource.data.branchId : resource.data.branchId;
-      }
-
-      allow get, write: if isAssignedToBranch(getBranchIdForIncident());
-
-      allow list: if isSuperAdmin() || (
-        isSignedIn() &&
-        'branchId' in request.query.where &&
-        isAssignedToBranch(request.query.where.branchId)
-      );
+      allow read, write, list: if isSignedIn();
     }
 
      match /app_settings/{settingId} {
-        // Any signed-in user can read the settings (needed for forms), 
-        // but only superadmins can write them.
         allow read: if isSignedIn();
-        allow write: if isSuperAdmin();
+        allow write: if isSignedIn();
      }
   }
 }

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import type { IncidentSettings } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { X, Plus, Loader2, ShieldAlert } from 'lucide-react';
+import { X, Plus, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useFirestore } from '@/firebase';
@@ -28,31 +28,16 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const { toast } = useToast();
-  const router = useRouter();
   const firestore = useFirestore();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
 
   useEffect(() => {
-    // This effect handles both user role checking and data loading sequentially.
     const loadData = async () => {
-      // 1. Wait for user profile to finish loading.
-      if (isProfileLoading) {
+      if (!firestore) {
+        setIsLoading(false);
         return;
       }
-
-      // 2. Once loading is done, check for superadmin role.
-      if (!userProfile || userProfile.role !== 'superadmin') {
-        toast({
-            variant: 'destructive',
-            title: 'Acceso Denegado',
-            description: 'No tienes permisos para acceder a esta página.'
-        });
-        router.push('/');
-        return; // Stop execution if not a superadmin.
-      }
       
-      // 3. If user is a superadmin, proceed to load settings.
-      if (!firestore) return;
       setIsLoading(true);
       const settingsRef = doc(firestore, 'app_settings', 'incident_config');
       try {
@@ -60,9 +45,7 @@ export default function SettingsPage() {
         if (settingsSnap.exists()) {
           setSettings(settingsSnap.data() as IncidentSettings);
         } else {
-          // This can happen on first load before seeding is complete.
-          // Providing a default empty state is better than crashing.
-          setSettings({ categories: [], priorities: [], statuses: [] });
+          setSettings({ categories: [], priorities: ['Low', 'Medium', 'High'], statuses: ['Abierto', 'En Progreso', 'Resuelto'] });
           toast({
             title: 'Configuración no encontrada',
             description: 'Creando documento de configuración inicial.'
@@ -73,7 +56,7 @@ export default function SettingsPage() {
         toast({
           variant: 'destructive',
           title: 'Error al Cargar',
-          description: 'No se pudo cargar la configuración de la aplicación. Revisa los permisos de Firestore.',
+          description: 'No se pudo cargar la configuración de la aplicación.',
         });
       } finally {
         setIsLoading(false);
@@ -82,7 +65,7 @@ export default function SettingsPage() {
     
     loadData();
 
-  }, [isProfileLoading, userProfile, firestore, router, toast]);
+  }, [firestore, toast]);
 
 
   const handleSaveCategories = async (newCategories: string[]) => {
@@ -94,7 +77,6 @@ export default function SettingsPage() {
     const settingsRef = doc(firestore, 'app_settings', 'incident_config');
     
     try {
-      // Using merge: true is safer as it won't overwrite other settings fields
       await setDoc(settingsRef, updatedSettings, { merge: true });
       setSettings(updatedSettings);
       toast({
@@ -105,7 +87,7 @@ export default function SettingsPage() {
        toast({
           variant: 'destructive',
           title: 'Error al Guardar',
-          description: 'No se pudieron guardar las categorías. Verifica tus permisos de escritura.',
+          description: 'No se pudieron guardar las categorías.',
         });
         console.error("Error saving categories:", error);
     } finally {
@@ -134,10 +116,7 @@ export default function SettingsPage() {
     handleSaveCategories(newCategories);
   };
   
-  // Combines all loading states
-  const totalLoading = isProfileLoading || isLoading;
-
-  if (totalLoading) {
+  if (isLoading || isProfileLoading) {
     return (
       <div className="flex flex-col gap-6">
         <Header title="Configuración" />
@@ -145,22 +124,6 @@ export default function SettingsPage() {
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       </div>
-    );
-  }
-
-  // This check is redundant due to the useEffect, but good for safety.
-  if (!userProfile || userProfile.role !== 'superadmin') {
-    return (
-        <div className="flex flex-col gap-4">
-            <Header title="Acceso Denegado" />
-            <div className="flex flex-col items-center justify-center gap-6 rounded-lg border bg-card text-card-foreground shadow-sm p-10 text-center">
-                <ShieldAlert className="size-16 text-destructive" />
-                <h2 className="text-2xl font-bold">Acceso Restringido</h2>
-                <p className="text-muted-foreground">
-                    No tienes permisos de superadministrador para ver esta página.
-                </p>
-            </div>
-        </div>
     );
   }
 
