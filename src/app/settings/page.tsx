@@ -90,7 +90,7 @@ export default function SettingsPage() {
             toast({
                 variant: 'destructive',
                 title: 'Error al Guardar',
-                description: 'No tienes permisos para agregar categorías.',
+                description: 'No se pudo agregar la categoría. Revisa los permisos.',
             });
             console.error("Error adding category:", error);
         } finally {
@@ -130,7 +130,7 @@ export default function SettingsPage() {
         toast({
             variant: 'destructive',
             title: 'Error al Eliminar',
-            description: 'No tienes permisos para eliminar categorías.',
+            description: 'No se pudo eliminar la categoría. Revisa los permisos.',
         });
         console.error("Error deleting category:", error);
     }
