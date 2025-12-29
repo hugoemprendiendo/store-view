@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { X, Plus, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { useFirestore } from '@/firebase';
+import { useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const priorityTextMap: Record<string, string> = {
@@ -48,33 +48,36 @@ export default function SettingsPage() {
       
       setIsLoading(true);
       const settingsRef = doc(firestore, 'app_settings', 'incident_config');
-      try {
-        const settingsSnap = await getDoc(settingsRef);
-        if (settingsSnap.exists()) {
-          setSettings(settingsSnap.data() as IncidentSettings);
-        } else {
-          // The seed script in `data.ts` should handle creation.
-          // If it still doesn't exist, there's a deeper issue.
-           toast({
-            variant: 'destructive',
-            title: 'Configuración no encontrada',
-            description: 'El documento de configuración de la aplicación no existe. Por favor, contacta a soporte.',
+      
+      getDoc(settingsRef)
+        .then(settingsSnap => {
+          if (settingsSnap.exists()) {
+            setSettings(settingsSnap.data() as IncidentSettings);
+          } else {
+             toast({
+              variant: 'destructive',
+              title: 'Configuración no encontrada',
+              description: 'El documento de configuración de la aplicación no existe. Por favor, contacta a soporte.',
+            });
+          }
+        })
+        .catch(error => {
+          // Create and emit the detailed error for debugging
+          const permissionError = new FirestorePermissionError({
+            path: settingsRef.path,
+            operation: 'get',
           });
-        }
-      } catch (error) {
-        console.error("Error fetching settings:", error);
-        toast({
-          variant: 'destructive',
-          title: 'Error al Cargar',
-          description: 'No se pudo cargar la configuración de la aplicación debido a un error de permisos o de red.',
+          errorEmitter.emit('permission-error', permissionError);
+        })
+        .finally(() => {
+          setIsLoading(false);
         });
-      } finally {
-        setIsLoading(false);
-      }
     };
     
-    if (!isProfileLoading) {
+    if (!isProfileLoading && userProfile) {
       loadData();
+    } else if (!isProfileLoading) {
+      setIsLoading(false);
     }
 
   }, [firestore, toast, userProfile, isProfileLoading]);
@@ -128,7 +131,7 @@ export default function SettingsPage() {
     handleSaveCategories(newCategories);
   };
   
-  if (isLoading || isProfileLoading || userProfile?.role !== 'superadmin') {
+  if (isLoading || isProfileLoading || (userProfile && userProfile.role !== 'superadmin')) {
     return (
       <div className="flex flex-col gap-6">
         <Header title="Configuración" />
