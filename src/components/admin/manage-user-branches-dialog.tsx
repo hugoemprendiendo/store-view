@@ -15,7 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useFirestore } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import type { Branch, UserProfile } from '@/lib/types';
 import { Loader2, Search } from 'lucide-react';
@@ -30,14 +30,13 @@ interface ManageUserBranchesDialogProps {
 
 export function ManageUserBranchesDialog({ user, allBranches, children, onUserUpdate }: ManageUserBranchesDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedBranches, setSelectedBranches] = useState<Record<string, boolean>>(user.assignedBranches || {});
+  const [selectedBranches, setSelectedBranches] = useState<Record<string, boolean>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const firestore = useFirestore();
   const { toast } = useToast();
 
   const handleCheckboxChange = (branchId: string, checked: boolean) => {
-    // Create a new copy to avoid direct state mutation
     const newSelection = { ...selectedBranches };
     if (checked) {
       newSelection[branchId] = true;
@@ -54,19 +53,19 @@ export function ManageUserBranchesDialog({ user, allBranches, children, onUserUp
     const userRef = doc(firestore, 'users', user.id);
 
     try {
-      // Ensure we are saving a clean object, even if it's empty.
-      const dataToSave = { assignedBranches: selectedBranches || {} };
+      // **LA CORRECCIÓN CLAVE:**
+      // Usamos setDoc con { merge: true } sobre el documento, pero la clave que actualizamos
+      // es `assignedBranches`, y la sobrescribimos por completo con el nuevo mapa.
+      // Esto elimina la estructura de array antigua y la reemplaza con el mapa limpio.
+      const dataToSave = { assignedBranches: selectedBranches };
       
-      await updateDoc(userRef, dataToSave);
+      await setDoc(userRef, dataToSave, { merge: true });
       
-      // We create a new user object with the updated data to pass to the parent.
-      // This is the source of truth now for the parent's state update.
       const updatedUser: UserProfile = { 
         ...user, 
-        assignedBranches: dataToSave.assignedBranches 
+        ...dataToSave
       };
       
-      // This call now updates the state in the parent component directly.
       onUserUpdate(updatedUser);
 
       toast({
@@ -79,7 +78,7 @@ export function ManageUserBranchesDialog({ user, allBranches, children, onUserUp
       toast({
         variant: 'destructive',
         title: 'Error al Actualizar',
-        description: 'No se pudieron guardar los cambios.',
+        description: 'No se pudieron guardar los cambios. Revisa los permisos.',
       });
     } finally {
       setIsSubmitting(false);
@@ -88,9 +87,19 @@ export function ManageUserBranchesDialog({ user, allBranches, children, onUserUp
   
   const handleOpenChange = (open: boolean) => {
     if (open) {
-      // Always reset to the current user prop when opening
-      setSelectedBranches(user.assignedBranches || {});
-      setSearchTerm(''); // Reset search on open
+      // Al abrir, filtramos el objeto `assignedBranches` para asegurarnos
+      // de que solo trabajamos con entradas válidas (booleano true), ignorando el array.
+      const validBranches: Record<string, boolean> = {};
+      if (user.assignedBranches && typeof user.assignedBranches === 'object') {
+          for (const key in user.assignedBranches) {
+              // Solo nos quedamos con las claves que son branch IDs y tienen valor `true`.
+              if (user.assignedBranches[key] === true) {
+                  validBranches[key] = true;
+              }
+          }
+      }
+      setSelectedBranches(validBranches);
+      setSearchTerm('');
     }
     setIsOpen(open);
   };
