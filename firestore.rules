@@ -56,11 +56,10 @@ service cloud.firestore {
       allow get, write: if isAssignedToBranch(getIncidentBranchId());
       
       // Superadmins can list all incidents.
-      // Regular users can list incidents ONLY if they filter by a specific branchId they are assigned to,
-      // which is implicitly enforced by the 'get' rule on each document returned by the query.
-      allow list: if isSuperAdmin() || (
-        isSignedIn() && request.query.keys.hasAny(['branchId'])
-      );
+      // Regular users cannot list all incidents; they must query by branchIds they are assigned to.
+      // The security for this is enforced by the `get` rule on each individual document
+      // that is returned by the client's `where('branchId', 'in', ...)` query.
+      allow list: if isSuperAdmin();
     }
     
     match /app_settings/{settingId} {
