@@ -33,10 +33,11 @@ export default function SettingsPage() {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
 
   useEffect(() => {
-    if (!isLoadingSettings && userProfile?.role !== 'superadmin') {
+    // Wait until profile loading is finished before checking role
+    if (!isProfileLoading && userProfile?.role !== 'superadmin') {
       router.push('/');
     }
-  }, [isLoadingSettings, userProfile, router]);
+  }, [isProfileLoading, userProfile, router]);
   
   useEffect(() => {
     async function fetchSettings() {
@@ -103,7 +104,7 @@ export default function SettingsPage() {
     handleSaveCategories(newCategories);
   };
   
-  const totalLoading = isLoadingSettings || isProfileLoading || !settings;
+  const totalLoading = isLoadingSettings || isProfileLoading;
 
   if (totalLoading) {
     return (
@@ -150,7 +151,7 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-2">
-                {settings.categories.map(category => (
+                {settings && settings.categories.map(category => (
                   <Badge key={category} variant="secondary" className="text-base pr-2">
                     {category}
                     <button 
@@ -163,7 +164,7 @@ export default function SettingsPage() {
                     </button>
                   </Badge>
                 ))}
-                {settings.categories.length === 0 && (
+                {settings && settings.categories.length === 0 && (
                     <p className="text-sm text-muted-foreground">No hay categorías definidas.</p>
                 )}
               </div>
@@ -191,7 +192,7 @@ export default function SettingsPage() {
               <CardDescription>Estos son los niveles de prioridad para una incidencia. (Solo lectura)</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
-              {settings.priorities.map(priority => (
+              {settings && settings.priorities.map(priority => (
                 <Badge key={priority} variant={
                   priority === 'High' ? 'destructive' : priority === 'Medium' ? 'default' : 'secondary'
                 } className="text-base">{priorityTextMap[priority] || priority}</Badge>
@@ -206,7 +207,7 @@ export default function SettingsPage() {
               <CardDescription>Este es el ciclo de vida de un reporte de incidencia. (Solo lectura)</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
-              {settings.statuses.map(status => (
+              {settings && settings.statuses.map(status => (
                 <Badge key={status} variant="secondary" className="text-base">{status}</Badge>
               ))}
             </CardContent>
