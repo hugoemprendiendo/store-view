@@ -25,7 +25,6 @@ service cloud.firestore {
             return true;
         }
         // A regular user must exist and have the branchId in their assignedBranches map.
-        // This is now safe: it checks for the existence of the key before trying to access it.
         let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
         return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
             && 'assignedBranches' in userDoc.data && branchId in userDoc.data.assignedBranches;
@@ -43,9 +42,11 @@ service cloud.firestore {
     }
 
     match /branches/{branchId} {
+      // Governs getDoc() - works for users assigned to the specific branch.
       allow get: if isAssignedToBranch(branchId);
-      // Superadmin can list all branches. Regular users must query their specific branches.
+      // Governs getDocs() with a query - only superadmins can list multiple branches.
       allow list: if isSuperAdmin();
+      // Only superadmins can modify branches.
       allow create, update, delete: if isSuperAdmin();
     }
 

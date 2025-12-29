@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -11,9 +10,9 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 
@@ -27,10 +26,10 @@ export default function IncidentsPage() {
   const firestore = useFirestore();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
 
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [userBranches, setUserBranches] = useState<Branch[]>([]);
-  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [allUserBranches, setAllUserBranches] = useState<Branch[]>([]);
+  const [isLoadingBranches, setIsLoadingBranches] = useState(true);
 
+  // Filters
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
@@ -38,75 +37,114 @@ export default function IncidentsPage() {
   const [filterBrand, setFilterBrand] = useState('all');
   const [filterBranchId, setFilterBranchId] = useState('all');
 
+  // Step 1: Fetch all branches a user has access to.
   useEffect(() => {
-    async function fetchData() {
-       if (!firestore || !userProfile) {
-        if(!isProfileLoading) {
-            setIsLoadingData(false);
-            setUserBranches([]);
-            setIncidents([]);
+    async function fetchBranches() {
+      if (!firestore || !userProfile) {
+        if (!isProfileLoading) {
+          setIsLoadingBranches(false);
+          setAllUserBranches([]);
         }
         return;
-      };
-      setIsLoadingData(true);
-      
+      }
+      setIsLoadingBranches(true);
       try {
         let branchesData: Branch[] = [];
-        let incidentsData: Incident[] = [];
-
         if (userProfile.role === 'superadmin') {
-          // 1. Superadmin: fetch all branches
           branchesData = await getBranches(firestore);
         } else if (userProfile.assignedBranches && Object.keys(userProfile.assignedBranches).length > 0) {
-          // 2. Normal user: fetch assigned branches
           const branchIds = Object.keys(userProfile.assignedBranches);
           branchesData = await getBranchesByIds(firestore, branchIds);
         }
-        
-        setUserBranches(branchesData);
-        
-        const accessibleBranchIds = branchesData.map(b => b.id);
-        if (accessibleBranchIds.length > 0) {
+        setAllUserBranches(branchesData);
+      } catch (error) {
+        console.error("Error fetching branches: ", error);
+        setAllUserBranches([]);
+      } finally {
+        setIsLoadingBranches(false);
+      }
+    }
+    if (!isProfileLoading) {
+      fetchBranches();
+    }
+  }, [firestore, userProfile, isProfileLoading]);
+
+  // Step 2: Build a memoized list of branch IDs the user can access.
+  const accessibleBranchIds = useMemo(() => {
+      if (isLoadingBranches || allUserBranches.length === 0) return [];
+      return allUserBranches.map(b => b.id);
+  }, [isLoadingBranches, allUserBranches]);
+
+  // Step 3: Create a memoized query for incidents based on accessible branches.
+  const incidentsQuery = useMemoFirebase(() => {
+    if (!firestore || accessibleBranchIds.length === 0) return null;
+    
+    // Firestore 'in' queries are limited to 30 values.
+    // For this page, we must fetch all incidents, so we create multiple queries if needed.
+    // NOTE: This approach is not scalable for thousands of branches. 
+    // A better long-term solution would be server-side aggregation or a different data model.
+    // However, for up to a few hundred branches, this is acceptable.
+    const chunks = [];
+    for (let i = 0; i < accessibleBranchIds.length; i += 30) {
+        chunks.push(accessibleBranchIds.slice(i, i + 30));
+    }
+    
+    // Since useCollection doesn't support multiple queries, we'll fetch manually inside a useEffect.
+    // This is a trade-off for handling more than 30 branches.
+    return null;
+
+  }, [firestore, accessibleBranchIds]);
+  
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [isLoadingIncidents, setIsLoadingIncidents] = useState(true);
+
+  useEffect(() => {
+    async function fetchAllIncidents() {
+        if (!firestore || accessibleBranchIds.length === 0) {
+            setIncidents([]);
+            setIsLoadingIncidents(false);
+            return;
+        }
+
+        setIsLoadingIncidents(true);
+        try {
             const chunks: string[][] = [];
             for (let i = 0; i < accessibleBranchIds.length; i += 30) {
                 chunks.push(accessibleBranchIds.slice(i, i + 30));
             }
+
             const incidentPromises = chunks.map(chunk => 
                 getDocs(query(collection(firestore, 'incidents'), where('branchId', 'in', chunk)))
             );
+            
             const incidentsSnapshots = await Promise.all(incidentPromises);
-            incidentsData = incidentsSnapshots.flatMap(snap => snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident)));
+            const incidentsData = incidentsSnapshots.flatMap(snap => snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident)));
+            setIncidents(incidentsData);
+        } catch (error) {
+            console.error("Error fetching all incidents:", error);
+            setIncidents([]);
+        } finally {
+            setIsLoadingIncidents(false);
         }
-        
-        setIncidents(incidentsData);
-        
-      } catch (error) {
-        console.error("Error fetching data: ", error);
-        setIncidents([]);
-        setUserBranches([]);
-      } finally {
-        setIsLoadingData(false);
-      }
     }
+    // We run this effect whenever the list of accessible branches changes.
+    fetchAllIncidents();
+  }, [firestore, accessibleBranchIds]);
 
-    if (!isProfileLoading) {
-        fetchData();
-    }
-  }, [firestore, userProfile, isProfileLoading]);
+
+  // --- Filtering Logic ---
 
   const branchMap = useMemo(() => {
-    return userBranches.reduce((acc, branch) => {
+    return allUserBranches.reduce((acc, branch) => {
         acc[branch.id] = branch;
         return acc;
     }, {} as Record<string, Branch>);
-  }, [userBranches]);
+  }, [allUserBranches]);
 
   const filteredIncidents = useMemo(() => {
     return incidents.filter(i => {
       const branch = branchMap[i.branchId];
-      if (!branch) {
-          return false;
-      }
+      if (!branch) return false;
       return (
         (filterCategory === 'all' || i.category === filterCategory) &&
         (filterStatus === 'all' || i.status === filterStatus) &&
@@ -147,7 +185,7 @@ export default function IncidentsPage() {
     return filteredIncidents.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [filteredIncidents]);
 
-  const totalLoading = isProfileLoading || isLoadingData;
+  const totalLoading = isProfileLoading || isLoadingBranches || isLoadingIncidents;
 
   if (totalLoading) {
       return (

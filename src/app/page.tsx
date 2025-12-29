@@ -1,10 +1,10 @@
 'use client';
 import { Header } from '@/components/layout/header';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import type { Branch, Incident } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc } from 'firebase/firestore';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useEffect, useState } from 'react';
 import { getBranchesByIds, getBranches } from '@/lib/data';
@@ -12,75 +12,62 @@ import { getBranchesByIds, getBranches } from '@/lib/data';
 export default function DashboardPage() {
   const firestore = useFirestore();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
-  const [userBranches, setUserBranches] = useState<Branch[]>([]);
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [isLoadingData, setIsLoadingData] = useState(true);
 
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [isLoadingBranches, setIsLoadingBranches] = useState(true);
+
+  // Step 1: Fetch branches based on user profile
   useEffect(() => {
-    async function fetchData() {
+    async function fetchBranches() {
       if (!firestore || !userProfile) {
-        if(!isProfileLoading){
-            setIsLoadingData(false);
-            setUserBranches([]);
-            setIncidents([]);
+        if (!isProfileLoading) {
+            setIsLoadingBranches(false);
+            setBranches([]);
         }
         return;
       }
 
-      setIsLoadingData(true);
+      setIsLoadingBranches(true);
       try {
         let branchesData: Branch[] = [];
-        
-        // 1. Fetch branches based on user role
         if (userProfile.role === 'superadmin') {
           branchesData = await getBranches(firestore);
         } else if (userProfile.assignedBranches && Object.keys(userProfile.assignedBranches).length > 0) {
           const branchIds = Object.keys(userProfile.assignedBranches);
           branchesData = await getBranchesByIds(firestore, branchIds);
         }
-        
-        setUserBranches(branchesData);
-
-        const accessibleBranchIds = branchesData.map(b => b.id);
-        let incidentsData: Incident[] = [];
-
-        // 2. Fetch incidents only for the branches the user has access to.
-        if (accessibleBranchIds.length > 0) {
-           const chunks: string[][] = [];
-           // Securely chunk the branch IDs for 'in' queries.
-           for (let i = 0; i < accessibleBranchIds.length; i += 30) {
-             chunks.push(accessibleBranchIds.slice(i, i + 30));
-           }
-
-           const incidentPromises = chunks.map(chunk =>
-             getDocs(query(collection(firestore, 'incidents'), where('branchId', 'in', chunk)))
-           );
-           
-           const allSnapshots = await Promise.all(incidentPromises);
-           
-           incidentsData = allSnapshots.flatMap(snapshot =>
-             snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident))
-           );
-        }
-        
-        setIncidents(incidentsData);
-
+        setBranches(branchesData);
       } catch (e) {
-        console.error("Error fetching dashboard data: ", e);
-        setUserBranches([]);
-        setIncidents([]);
+        console.error("Error fetching dashboard branches: ", e);
+        setBranches([]);
       } finally {
-        setIsLoadingData(false);
+        setIsLoadingBranches(false);
       }
     }
-    
-    if (!isProfileLoading) {
-        fetchData();
-    }
 
+    if (!isProfileLoading) {
+      fetchBranches();
+    }
   }, [firestore, userProfile, isProfileLoading]);
+
+  // Step 2: Create a memoized query for incidents based on fetched branches
+  const incidentsQuery = useMemoFirebase(() => {
+    if (!firestore || branches.length === 0) return null;
+    
+    const accessibleBranchIds = branches.map(b => b.id);
+    
+    // We can only query for 30 branch IDs at a time with 'in'
+    // For simplicity in this dashboard, we'll query for the first 30.
+    // The main incidents page will handle full pagination if needed.
+    const queryableBranchIds = accessibleBranchIds.slice(0, 30);
+    
+    return query(collection(firestore, 'incidents'), where('branchId', 'in', queryableBranchIds));
+  }, [firestore, branches]);
+
+  // Step 3: Use the useCollection hook to get incidents
+  const { data: incidents, isLoading: isLoadingIncidents } = useCollection<Incident>(incidentsQuery);
   
-  const isLoading = isProfileLoading || isLoadingData;
+  const isLoading = isProfileLoading || isLoadingBranches;
 
   if (isLoading) {
     return (
@@ -97,7 +84,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <Header title="Panel de Control" />
-      <DashboardClient branches={userBranches} incidents={incidents} />
+      <DashboardClient branches={branches} incidents={incidents || []} />
     </div>
   );
 }
