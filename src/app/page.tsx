@@ -12,28 +12,17 @@ import { getBranchesByIds, getBranches } from '@/lib/data';
 export default function DashboardPage() {
   const firestore = useFirestore();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
-  const [userBranches, setUserBranches] = useState<Branch[] | null>(null);
-  const [incidents, setIncidents] = useState<Incident[] | null>(null);
+  const [userBranches, setUserBranches] = useState<Branch[]>([]);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   useEffect(() => {
-    // Abort controller to prevent state updates if the component unmounts
-    const controller = new AbortController();
-    const { signal } = controller;
-
     async function fetchData() {
-      // Ensure Firestore is ready and we have a definitive user profile state
-      if (!firestore || isProfileLoading) {
-        return;
-      }
-
-      // If auth is loaded but there's no profile, the user is likely new or logged out.
-      // We can stop loading and show an empty state.
-      if (!userProfile) {
-        if (!signal.aborted) {
+      if (!firestore || !userProfile) {
+        if(!isProfileLoading){
+            setIsLoadingData(false);
             setUserBranches([]);
             setIncidents([]);
-            setIsLoadingData(false);
         }
         return;
       }
@@ -49,8 +38,7 @@ export default function DashboardPage() {
           const branchIds = Object.keys(userProfile.assignedBranches);
           branchesData = await getBranchesByIds(firestore, branchIds);
         }
-
-        if (signal.aborted) return;
+        
         setUserBranches(branchesData);
 
         const accessibleBranchIds = branchesData.map(b => b.id);
@@ -69,40 +57,29 @@ export default function DashboardPage() {
            );
            
            const allSnapshots = await Promise.all(incidentPromises);
-
-           if (signal.aborted) return;
            
            incidentsData = allSnapshots.flatMap(snapshot =>
              snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident))
            );
         }
         
-        if (signal.aborted) return;
         setIncidents(incidentsData);
 
       } catch (e) {
-        if (!signal.aborted) {
-            console.error("Error fetching dashboard data: ", e);
-            setUserBranches([]);
-            setIncidents([]);
-        }
+        console.error("Error fetching dashboard data: ", e);
+        setUserBranches([]);
+        setIncidents([]);
       } finally {
-        if (!signal.aborted) {
-          setIsLoadingData(false);
-        }
+        setIsLoadingData(false);
       }
     }
     
-    fetchData();
+    if (!isProfileLoading) {
+        fetchData();
+    }
 
-    // Cleanup function to abort fetch if component unmounts
-    return () => {
-      controller.abort();
-    };
-  // The dependency array correctly triggers a re-fetch when the user profile or loading status changes.
   }, [firestore, userProfile, isProfileLoading]);
   
-  // The total loading state is true if we are waiting for the user profile OR the subsequent data fetch.
   const isLoading = isProfileLoading || isLoadingData;
 
   if (isLoading) {
