@@ -24,7 +24,8 @@ service cloud.firestore {
         }
         // A regular user must exist and have the branchId in their assignedBranches map.
         let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
-        return 'assignedBranches' in userDoc.data && branchId in userDoc.data.assignedBranches;
+        return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            && 'assignedBranches' in userDoc.data && branchId in userDoc.data.assignedBranches;
     }
     
     match /users/{userId} {
@@ -52,11 +53,12 @@ service cloud.firestore {
       }
       
       // Allow read/write to an incident if the user is assigned to the incident's branch.
+      // The 'get' rule will be applied to every document returned by a 'list' (query) operation.
       allow get, write: if isAssignedToBranch(getIncidentBranchId());
       
-      // Superadmins can list all incidents.
-      // Regular users cannot list all incidents; they must query by branchIds they are assigned to,
-      // which is enforced by the `get` rule on individual documents.
+      // We only allow a superadmin to list all incidents.
+      // For regular users, queries must be filtered by branchId. The security for this
+      // is enforced by the `get` rule above on each individual document returned by the query.
       allow list: if isSuperAdmin();
     }
     
