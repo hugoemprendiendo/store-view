@@ -82,5 +82,10 @@ service cloud.firestore {
         allow get, list: if isSignedIn();
         allow write: if isSuperAdmin();
      }
+
+     // Rule for the new test collection
+     match /test_docs/{docId} {
+        allow read, write: if true;
+     }
   }
 }
