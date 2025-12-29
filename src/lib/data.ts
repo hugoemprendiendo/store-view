@@ -7,14 +7,11 @@ import {
   query,
   where,
   writeBatch,
-  getFirestore,
   Firestore,
   setDoc,
 } from 'firebase/firestore';
 import type { Branch, Incident, IncidentSettings } from './types';
 import { getInitialBranches, getInitialIncidents } from './seed-data';
-import { getApps, initializeApp } from 'firebase/app';
-import { firebaseConfig } from '@/firebase/config';
 
 // Default settings in case the document doesn't exist
 const defaultIncidentSettings: IncidentSettings = {
@@ -34,7 +31,7 @@ const defaultIncidentSettings: IncidentSettings = {
 
 // This is a one-time setup to seed the database if it's empty.
 // In a real application, this would be handled by a proper migration or setup script.
-async function seedDatabase(firestore: Firestore) {
+export async function seedDatabase(firestore: Firestore) {
   // Seed Incident Settings
   const settingsRef = doc(firestore, 'app_settings', 'incident_config');
   const settingsSnap = await getDoc(settingsRef);
@@ -77,15 +74,6 @@ async function seedDatabase(firestore: Firestore) {
     console.log('Incident seeding complete.');
   }
 }
-
-// Automatically try to seed when this module is loaded on the client.
-if (typeof window !== 'undefined') {
-  // This setup ensures we have a Firestore instance to pass to the seed function.
-  const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-  const firestore = getFirestore(app);
-  // seedDatabase(firestore).catch(console.error);
-}
-
 
 export async function getBranches(firestore: Firestore): Promise<Branch[]> {
     const branchesCol = collection(firestore, 'branches');
@@ -150,7 +138,9 @@ export async function getIncidentSettings(firestore: Firestore): Promise<Inciden
     if (settingsSnap.exists()) {
         return settingsSnap.data() as IncidentSettings;
     }
-    // Return default settings if the document doesn't exist.
-    // This can happen on first run before seeding completes.
+    
+    // If it doesn't exist, create it with default values and return them.
+    console.log("Incident settings not found, creating with default values...");
+    await setDoc(settingsRef, defaultIncidentSettings);
     return defaultIncidentSettings;
 }

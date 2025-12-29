@@ -33,24 +33,25 @@ export default function SettingsPage() {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
 
   useEffect(() => {
-    // Wait until the user profile has finished loading
-    if (isProfileLoading) {
-      return; 
-    }
+    // This effect handles both user role checking and data loading sequentially.
+    const loadData = async () => {
+      // 1. Wait for user profile to finish loading.
+      if (isProfileLoading) {
+        return;
+      }
 
-    // If loading is finished and there's no user profile, or user is not superadmin, redirect.
-    if (!userProfile || userProfile.role !== 'superadmin') {
-      toast({
-          variant: 'destructive',
-          title: 'Acceso Denegado',
-          description: 'No tienes permisos para acceder a esta página.'
-      });
-      router.push('/');
-      return;
-    }
-    
-    // Now that we've confirmed the user is a superadmin, load the settings.
-    const loadSettings = async () => {
+      // 2. Once loading is done, check for superadmin role.
+      if (!userProfile || userProfile.role !== 'superadmin') {
+        toast({
+            variant: 'destructive',
+            title: 'Acceso Denegado',
+            description: 'No tienes permisos para acceder a esta página.'
+        });
+        router.push('/');
+        return; // Stop execution if not a superadmin.
+      }
+      
+      // 3. If user is a superadmin, proceed to load settings.
       if (!firestore) return;
       setIsLoading(true);
       const settingsRef = doc(firestore, 'app_settings', 'incident_config');
@@ -79,7 +80,7 @@ export default function SettingsPage() {
       }
     };
     
-    loadSettings();
+    loadData();
 
   }, [isProfileLoading, userProfile, firestore, router, toast]);
 
