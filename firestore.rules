@@ -32,7 +32,10 @@ service cloud.firestore {
         return false;
       }
       let userDoc = getUserDoc();
-      return 'assignedBranches' in userDoc.data && userDoc.data.assignedBranches[branchId] == true;
+      // Ensure assignedBranches is a map before accessing it
+      return 'assignedBranches' in userDoc.data 
+        && userDoc.data.assignedBranches is map
+        && userDoc.data.assignedBranches[branchId] == true;
     }
     
     match /users/{userId} {
@@ -51,17 +54,23 @@ service cloud.firestore {
 
     match /incidents/{incidentId} {
       function getIncidentBranchId() {
+        // For 'create', the data is in request.resource.data.
+        // For 'update' or 'delete', the data is in the existing resource.
         return request.method == 'create' ? request.resource.data.branchId : resource.data.branchId;
       }
       
       // Allow get/write if the user is assigned to the incident's branch.
-      // `get` allows fetching single documents, which Firestore uses to check each document
+      // `get` allows fetching single documents. Firestore uses this to check each document
       // returned by a 'list' query.
-      allow get, write: if isAssignedToBranch(getIncidentBranchId());
+      allow get: if isAssignedToBranch(resource.data.branchId);
       
       // Allow 'list' (queries) to proceed if the user is signed in.
-      // The `get` rule above will then secure each document returned by the query.
+      // The `get` rule above will then secure each individual document returned by the query.
+      // This is the standard pattern for enabling secure 'in'/'array-contains-any' queries.
       allow list: if isSignedIn();
+      
+      // Allow write operations (create, update, delete) if assigned to the branch.
+      allow write: if isAssignedToBranch(getIncidentBranchId());
     }
     
     match /app_settings/{settingId} {

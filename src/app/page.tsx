@@ -6,7 +6,7 @@ import type { Branch, Incident } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useEffect, useState } from 'react';
-import { getBranchesByIds } from '@/lib/data';
+import { getBranchesByIds, getIncidentsForUser } from '@/lib/data';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
 export default function DashboardPage() {
@@ -31,9 +31,10 @@ export default function DashboardPage() {
   const { data: adminBranches, isLoading: isAdminBranchesLoading } = useCollection<Branch>(branchesQuery);
   const { data: adminIncidents, isLoading: isAdminIncidentsLoading } = useCollection<Incident>(incidentsQuery);
 
-  // Data fetching for REGULAR USERS
+  // One-time data fetching for REGULAR USERS
   useEffect(() => {
     async function fetchUserData() {
+      // Exit if still loading, no firestore, no user profile, or if user is a superadmin (handled by hooks)
       if (isProfileLoading || !firestore || !userProfile || userProfile.role === 'superadmin') {
         if (!isProfileLoading) {
             setIsLoadingData(false);
@@ -45,15 +46,15 @@ export default function DashboardPage() {
       try {
         const branchIds = Object.keys(userProfile.assignedBranches || {});
         if (branchIds.length > 0) {
-          const branchesData = await getBranchesByIds(firestore, branchIds);
+          // Fetch the specific branches and their corresponding incidents in parallel
+          const [branchesData, incidentsData] = await Promise.all([
+            getBranchesByIds(firestore, branchIds),
+            getIncidentsForUser(firestore, branchIds)
+          ]);
           setLocalBranches(branchesData);
-          
-          const incidentsRef = collection(firestore, 'incidents');
-          const incidentsForUserQuery = query(incidentsRef, where('branchId', 'in', branchIds));
-          const incidentsSnapshot = await getDocs(incidentsForUserQuery);
-          const incidentsData = incidentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
           setLocalIncidents(incidentsData);
         } else {
+          // If user has no assigned branches, set data to empty arrays
           setLocalBranches([]);
           setLocalIncidents([]);
         }
