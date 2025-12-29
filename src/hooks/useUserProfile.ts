@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useFirestore, useUser } from '@/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import type { UserProfile } from '@/lib/types';
 
 export function useUserProfile() {
@@ -12,28 +12,35 @@ export function useUserProfile() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchUserProfile() {
-      if (!firestore || !authUser) {
-        setIsLoading(false);
-        return;
-      }
-      
+    if (isUserLoading) {
       setIsLoading(true);
-      const userDocRef = doc(firestore, 'users', authUser.uid);
-      const userDocSnap = await getDoc(userDocRef);
+      return;
+    }
+    if (!firestore || !authUser) {
+      setUserProfile(null);
+      setIsLoading(false);
+      return;
+    }
 
-      if (userDocSnap.exists()) {
-        setUserProfile({ id: userDocSnap.id, ...userDocSnap.data() } as UserProfile);
+    setIsLoading(true);
+    const userDocRef = doc(firestore, 'users', authUser.uid);
+
+    const unsubscribe = onSnapshot(userDocRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setUserProfile({ id: snapshot.id, ...snapshot.data() } as UserProfile);
       } else {
         setUserProfile(null);
       }
       setIsLoading(false);
-    }
+    }, (error) => {
+      console.error("Error fetching user profile with onSnapshot:", error);
+      setUserProfile(null);
+      setIsLoading(false);
+    });
 
-    if (!isUserLoading) {
-      fetchUserProfile();
-    }
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
   }, [firestore, authUser, isUserLoading]);
 
-  return { userProfile, isLoading: isLoading || isUserLoading };
+  return { userProfile, isLoading: isLoading };
 }

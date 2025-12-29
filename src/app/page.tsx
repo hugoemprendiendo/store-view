@@ -7,18 +7,26 @@ import { Loader2 } from 'lucide-react';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useEffect, useState } from 'react';
+import { getBranchesByIds } from '@/lib/data';
 
 export default function DashboardPage() {
   const firestore = useFirestore();
   const { user } = useUser();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
   const [userBranches, setUserBranches] = useState<Branch[] | null>(null);
+  const [isLoadingBranches, setIsLoadingBranches] = useState(true);
 
   // Fetch branches based on user role
   useEffect(() => {
-    if (!firestore || isProfileLoading || !userProfile) return;
+    if (!firestore || isProfileLoading || !userProfile) {
+        if (!isProfileLoading) {
+            setIsLoadingBranches(false);
+        }
+        return;
+    };
 
     async function fetchUserBranches() {
+      setIsLoadingBranches(true);
       if (userProfile.role === 'superadmin') {
         const branchesSnapshot = await getDocs(collection(firestore, 'branches'));
         const branchesData = branchesSnapshot.docs.map(snap => ({ id: snap.id, ...snap.data() } as Branch));
@@ -26,30 +34,26 @@ export default function DashboardPage() {
       } else if (userProfile.assignedBranches) {
         const branchIds = Object.keys(userProfile.assignedBranches);
         if (branchIds.length > 0) {
-          try {
-            const branchPromises = branchIds.map(id => getDoc(doc(firestore, 'branches', id)));
-            const branchSnapshots = await Promise.all(branchPromises);
-            const branchesData = branchSnapshots
-              .filter(snap => snap.exists())
-              .map(snap => ({ id: snap.id, ...snap.data() } as Branch));
-            setUserBranches(branchesData);
-          } catch (e) {
-            console.error("Error fetching user branches with getDoc: ", e);
-            setUserBranches([]);
-          }
+            try {
+                const branchesData = await getBranchesByIds(firestore, branchIds);
+                setUserBranches(branchesData);
+            } catch (e) {
+                console.error("Error fetching user branches: ", e);
+                setUserBranches([]);
+            }
         } else {
           setUserBranches([]);
         }
       } else {
         setUserBranches([]);
       }
+      setIsLoadingBranches(false);
     }
 
     fetchUserBranches();
   }, [firestore, userProfile, isProfileLoading]);
   
   const branches = userBranches;
-  const isLoadingBranches = userBranches === null;
 
   // Fetch incidents based on user role and loaded branches
   const incidentsQuery = useMemoFirebase(() => {
@@ -58,7 +62,7 @@ export default function DashboardPage() {
     if (userProfile.role === 'superadmin') {
       return collection(firestore, 'incidents');
     }
-
+    
     // For regular users, our security rules only allow querying incidents for a single branch.
     // If the user is assigned to exactly one branch, we fetch its incidents.
     // Otherwise, we return null to avoid making a query that would be denied.
