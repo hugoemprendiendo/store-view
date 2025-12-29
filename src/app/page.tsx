@@ -97,7 +97,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <Header title="Panel de Control" />
-      <DashboardClient branches={userBranches || []} incidents={incidents || []} />
+      <DashboardClient branches={userBranches} incidents={incidents} />
     </div>
   );
 }
