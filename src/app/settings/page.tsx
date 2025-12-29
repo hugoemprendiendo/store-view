@@ -24,7 +24,7 @@ const priorityTextMap: Record<string, string> = {
 export default function SettingsPage() {
   const [settings, setSettings] = useState<IncidentSettings | null>(null);
   const [newCategory, setNewCategory] = useState('');
-  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   const { toast } = useToast();
@@ -33,16 +33,19 @@ export default function SettingsPage() {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
 
   useEffect(() => {
-    // Wait until profile loading is finished before checking role
-    if (!isProfileLoading && userProfile?.role !== 'superadmin') {
-      router.push('/');
-    }
-  }, [isProfileLoading, userProfile, router]);
-  
-  useEffect(() => {
     async function fetchSettings() {
-      if (!firestore) return;
-      setIsLoadingSettings(true);
+      // Don't fetch until profile is loaded and confirmed to be superadmin
+      if (isProfileLoading || !firestore || !userProfile) {
+        return;
+      }
+      
+      // If the user is not a superadmin, stop and redirect.
+      if (userProfile.role !== 'superadmin') {
+          router.push('/');
+          return;
+      }
+
+      setIsLoading(true);
       const settingsRef = doc(firestore, 'app_settings', 'incident_config');
       const settingsSnap = await getDoc(settingsRef);
       if (settingsSnap.exists()) {
@@ -51,10 +54,11 @@ export default function SettingsPage() {
         // Handle case where settings doc doesn't exist yet
         setSettings({ categories: [], priorities: [], statuses: [] });
       }
-      setIsLoadingSettings(false);
+      setIsLoading(false);
     }
+    
     fetchSettings();
-  }, [firestore]);
+  }, [firestore, isProfileLoading, userProfile, router]);
 
 
   const handleSaveCategories = async (newCategories: string[]) => {
@@ -104,7 +108,7 @@ export default function SettingsPage() {
     handleSaveCategories(newCategories);
   };
   
-  const totalLoading = isLoadingSettings || isProfileLoading;
+  const totalLoading = isLoading || isProfileLoading;
 
   if (totalLoading) {
     return (

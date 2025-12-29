@@ -59,7 +59,7 @@ service cloud.firestore {
     }
 
      match /app_settings/{settingId} {
-        allow read: if isSignedIn();
+        allow read: if isSignedIn() || isSuperAdmin();
         allow write: if isSuperAdmin();
      }
   }
