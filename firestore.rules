@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -25,7 +26,8 @@ service cloud.firestore {
         }
         // A regular user must exist and have the branchId in their assignedBranches map.
         let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
-        return 'assignedBranches' in userDoc.data && branchId in userDoc.data.assignedBranches;
+        return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            && 'assignedBranches' in userDoc.data && branchId in userDoc.data.assignedBranches;
     }
     
     match /users/{userId} {

@@ -1,3 +1,4 @@
+
 'use client';
 import { Header } from '@/components/layout/header';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
