@@ -12,26 +12,34 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
     
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userDocExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
     function isSuperAdmin() {
-      // This relies on the user having read access to their own document.
-      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
-          && userDoc.data.role == 'superadmin';
+      // Use helper functions for clarity and robustness.
+      return isSignedIn() && userDocExists() && getUserDoc().data.role == 'superadmin';
     }
     
     function isAssignedToBranch(branchId) {
-        // A superadmin is implicitly assigned to all branches.
-        if (isSuperAdmin()) {
-            return true;
-        }
-        // A regular user must exist and have the branchId in their assignedBranches map.
-        let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
-        return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-            && 'assignedBranches' in userDoc.data && branchId in userDoc.data.assignedBranches;
+      // A superadmin is implicitly assigned to all branches.
+      if (isSuperAdmin()) {
+        return true;
+      }
+      // A regular user must exist and have the branchId in their assignedBranches map.
+      if (!isSignedIn() || !userDocExists()) {
+        return false;
+      }
+      let userDoc = getUserDoc();
+      return 'assignedBranches' in userDoc.data && userDoc.data.assignedBranches[branchId] == true;
     }
     
     match /users/{userId} {
-      // A user must be able to read their own document for isSuperAdmin() and isAssignedToBranch() to work.
+      // A user must be able to read their own document for helper functions to work.
       // A superadmin can get any user's profile.
       allow get: if isOwner(userId) || isSuperAdmin();
       // Allow a user to create their own profile. A superadmin can create/update any profile.
@@ -51,19 +59,17 @@ service cloud.firestore {
     }
 
     match /incidents/{incidentId} {
-      function getIncidentBranchId() {
-        // For a create operation, the branchId is in the incoming request data.
-        // For all other operations, it's in the existing document on the server.
-        return request.method == 'create' ? request.resource.data.branchId : resource.data.branchId;
-      }
-      
-      // Allow read/write to an incident if the user is assigned to the incident's branch.
-      // This 'get' rule is crucial. It will be applied to every document returned by a 'list' (query) operation.
-      allow get, write: if isAssignedToBranch(getIncidentBranchId());
-      
-      // Allow a 'list' (query) operation to proceed ONLY FOR SUPERADMINS.
-      // For normal users, the client should fetch incidents per-branch.
-      allow list: if isSuperAdmin();
+      // READ (get, list/query):
+      // Allow if the user is signed in and is assigned to the branch of the document being read.
+      // This rule allows queries like `where('branchId', '==', X)`. Firestore checks this rule
+      // for every document the query tries to return.
+      allow read: if isSignedIn() && isAssignedToBranch(resource.data.branchId);
+
+      // WRITE (create, update, delete):
+      // For a new incident, check the branchId from the incoming data.
+      allow create: if isSignedIn() && isAssignedToBranch(request.resource.data.branchId);
+      // For existing incidents, check the branchId from the data already on the server.
+      allow update, delete: if isSignedIn() && isAssignedToBranch(resource.data.branchId);
     }
     
     match /app_settings/{settingId} {

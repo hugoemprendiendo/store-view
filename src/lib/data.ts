@@ -110,7 +110,7 @@ export async function getIncidentsForUser(firestore: Firestore, branchIds: strin
   if (!branchIds || branchIds.length === 0) {
     return [];
   }
-
+  
   // The security rules for a non-superadmin only allow list queries on the 'incidents' 
   // collection if they are filtered by a single branchId they have access to. 
   // A broader `where('branchId', 'in', ...)` query is blocked by security rules for non-superadmins.
