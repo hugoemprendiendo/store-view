@@ -68,13 +68,14 @@ export default function SettingsPage() {
             description: 'El documento de configuración de incidencias no se encuentra. Un superadmin puede guardarlo para crearlo.',
           });
         }
-      } catch (error) {
-        console.error("Error fetching settings:", error);
-        toast({
-            variant: 'destructive',
-            title: 'Error al Cargar',
-            description: 'No se pudieron cargar los ajustes. Verifica los permisos.',
-        });
+      } catch (error: any) {
+         console.error("Error fetching settings:", error);
+         // Create and throw the detailed error for debugging
+         const permissionError = new FirestorePermissionError({
+           path: settingsRef.path,
+           operation: 'get',
+         });
+         errorEmitter.emit('permission-error', permissionError);
       } finally {
         setIsLoading(false); // Ensure loading is always stopped.
       }

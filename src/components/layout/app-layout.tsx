@@ -9,12 +9,8 @@ import { SidebarNav } from './sidebar-nav';
 import { useUser } from '@/firebase';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user } = useUser();
-
-  if (!user) {
-    // Don't render the main layout if there is no user
-    return <main className="bg-background">{children}</main>;
-  }
+  // This layout is now only rendered for authenticated users,
+  // so we don't need to check for the user here anymore.
 
   return (
     <SidebarProvider>

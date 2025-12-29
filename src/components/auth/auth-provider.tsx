@@ -29,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user, isUserLoading, pathname, router]);
 
+  // While checking user auth, show a global loader
   if (isUserLoading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center">
@@ -37,17 +38,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
   }
 
-  // If user is not logged in and on a public route, show the page without the main layout
+  // If user is not logged in and on a public route, show the page content without the main layout
   if (!user && publicRoutes.includes(pathname)) {
       return <>{children}</>;
   }
 
-  // If user is logged in, show the page within the main app layout
+  // If user is logged in, show the page content within the main app layout
   if (user) {
-      return <>{children}</>;
+      return <AppLayout>{children}</AppLayout>;
   }
 
   // Fallback for edge cases, e.g., user becomes null while on a private route before redirect happens
+  // This usually shows the loader for a brief moment before the redirect kicks in.
   return (
     <div className="flex h-screen w-screen items-center justify-center">
       <Loader2 className="h-8 w-8 animate-spin" />
