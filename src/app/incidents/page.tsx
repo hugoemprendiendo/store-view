@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import type { Branch, Incident } from '@/lib/types';
-import { getBranchesByIds, getBranches, getIncidentsForUser } from '@/lib/data';
+import { getBranchesByIds, getBranches, getIncidentsByBranch } from '@/lib/data';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -37,20 +37,15 @@ export default function IncidentsPage() {
   const [filterBrand, setFilterBrand] = useState('all');
   const [filterBranchId, setFilterBranchId] = useState('all');
   
+  // Initial data load for branches
   useEffect(() => {
-    async function fetchData() {
-      if (isProfileLoading || !firestore) {
+    async function fetchBranches() {
+      if (isProfileLoading || !firestore || !userProfile) {
+        if (!isProfileLoading) setIsLoadingData(false);
         return;
       }
-      setIsLoadingData(true);
       
-      if (!userProfile) {
-          setAllUserBranches([]);
-          setIncidents([]);
-          setIsLoadingData(false);
-          return;
-      }
-
+      setIsLoadingData(true);
       const isSuperAdmin = userProfile.role === 'superadmin';
       const accessibleBranchIds = isSuperAdmin ? null : Object.keys(userProfile.assignedBranches || {});
 
@@ -60,31 +55,49 @@ export default function IncidentsPage() {
           : await getBranchesByIds(firestore, accessibleBranchIds || []);
         
         setAllUserBranches(branches);
-
-        if (branches.length > 0) {
-            const branchIds = branches.map(b => b.id);
-            const incidentsData = await getIncidentsForUser(firestore, branchIds);
-            setIncidents(incidentsData);
-        } else {
-            setIncidents([]);
-        }
-
       } catch (error) {
-        console.error("Error fetching data for incidents page:", error);
+        console.error("Error fetching branches for incidents page:", error);
         setAllUserBranches([]);
-        setIncidents([]);
       } finally {
         setIsLoadingData(false);
       }
     }
-    fetchData();
+    fetchBranches();
   }, [firestore, userProfile, isProfileLoading]);
+
+  // Effect to fetch incidents when a specific branch is selected
+  useEffect(() => {
+      async function fetchIncidentsForBranch() {
+          if (!firestore || filterBranchId === 'all') {
+              setIncidents([]);
+              return;
+          }
+          setIsLoadingData(true);
+          try {
+              const incidentsData = await getIncidentsByBranch(firestore, filterBranchId);
+              setIncidents(incidentsData);
+          } catch(e) {
+              console.error(`Failed to fetch incidents for branch ${filterBranchId}`, e);
+              setIncidents([]);
+          } finally {
+              setIsLoadingData(false);
+          }
+      }
+      
+      // For superadmin, if no branch is selected, show nothing.
+      // For regular user, if no branch is selected, show nothing.
+      if (userProfile?.role === 'superadmin' && filterBranchId === 'all') {
+          setIncidents([]);
+          return;
+      }
+      
+      fetchIncidentsForBranch();
+  }, [filterBranchId, firestore, userProfile]);
 
 
   // --- Filtering Logic ---
 
   const branchMap = useMemo(() => {
-    if (!allUserBranches) return {};
     return allUserBranches.reduce((acc, branch) => {
         acc[branch.id] = branch;
         return acc;
@@ -92,7 +105,6 @@ export default function IncidentsPage() {
   }, [allUserBranches]);
 
   const filteredIncidents = useMemo(() => {
-    if (!incidents) return [];
     return incidents.filter(i => {
       const branch = branchMap[i.branchId];
       if (!branch) return false;
@@ -101,26 +113,19 @@ export default function IncidentsPage() {
         (filterStatus === 'all' || i.status === filterStatus) &&
         (filterPriority === 'all' || i.priority === filterPriority) &&
         (filterRegion === 'all' || branch.region === filterRegion) &&
-        (filterBrand === 'all' || branch.brand === filterBrand) &&
-        (filterBranchId === 'all' || i.branchId === filterBranchId)
+        (filterBrand === 'all' || branch.brand === filterBrand)
       );
     });
-  }, [incidents, filterCategory, filterStatus, filterPriority, filterRegion, filterBrand, filterBranchId, branchMap]);
+  }, [incidents, filterCategory, filterStatus, filterPriority, filterRegion, filterBrand, branchMap]);
 
   const availableOptions = useMemo(() => {
-    const branchesInFilter = new Map<string, Branch>();
-    (incidents || []).forEach(incident => {
-      if (branchMap[incident.branchId] && !branchesInFilter.has(incident.branchId)) {
-        branchesInFilter.set(incident.branchId, branchMap[incident.branchId]);
-      }
-    });
+    const branchesInFilter = allUserBranches;
 
-    const branchesArray = Array.from(branchesInFilter.values());
-    const uniqueCategories = ['all', ...Array.from(new Set((incidents || []).map(i => i.category).filter(Boolean)))];
-    const uniqueStatuses = ['all', ...Array.from(new Set((incidents || []).map(i => i.status).filter(Boolean)))];
-    const uniquePriorities = ['all', ...Array.from(new Set((incidents || []).map(i => i.priority).filter(Boolean)))];
-    const uniqueRegions = ['all', ...Array.from(new Set(branchesArray.map(b => b.region).filter(Boolean)))];
-    const uniqueBrands = ['all', ...Array.from(new Set(branchesArray.map(b => b.brand).filter(Boolean)))];
+    const uniqueCategories = ['all', ...Array.from(new Set(incidents.map(i => i.category).filter(Boolean)))];
+    const uniqueStatuses = ['all', ...Array.from(new Set(incidents.map(i => i.status).filter(Boolean)))];
+    const uniquePriorities = ['all', ...Array.from(new Set(incidents.map(i => i.priority).filter(Boolean)))];
+    const uniqueRegions = ['all', ...Array.from(new Set(branchesInFilter.map(b => b.region).filter(Boolean)))];
+    const uniqueBrands = ['all', ...Array.from(new Set(branchesInFilter.map(b => b.brand).filter(Boolean)))];
   
     return {
       categories: uniqueCategories,
@@ -128,9 +133,9 @@ export default function IncidentsPage() {
       priorities: uniquePriorities,
       regions: uniqueRegions,
       brands: uniqueBrands,
-      branches: ['all', ...branchesArray],
+      branches: ['all', ...branchesInFilter],
     };
-  }, [incidents, branchMap]);
+  }, [incidents, allUserBranches]);
   
   const sortedAndFilteredIncidents = useMemo(() => {
     return filteredIncidents.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -138,16 +143,7 @@ export default function IncidentsPage() {
 
   const totalLoading = isProfileLoading || isLoadingData;
 
-  if (totalLoading) {
-      return (
-          <div className="flex flex-col gap-6">
-              <Header title="Todas las Incidencias" />
-              <div className="flex justify-center items-center h-64">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-          </div>
-      )
-  }
+  const showIncidentsTable = filterBranchId !== 'all';
 
   return (
     <div className="flex flex-col gap-6">
@@ -155,9 +151,14 @@ export default function IncidentsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Filtrar Incidencias</CardTitle>
-          <CardDescription>Usa los filtros para encontrar incidencias específicas.</CardDescription>
+          <CardDescription>
+            {userProfile?.role === 'superadmin' 
+              ? "Usa los filtros para encontrar incidencias específicas. Debes seleccionar una tienda para ver sus incidencias."
+              : "Selecciona una de tus sucursales para ver las incidencias reportadas."
+            }
+          </CardDescription>
            <div className="grid gap-4 pt-4 md:grid-cols-2 lg:grid-cols-3">
-              <Select value={filterRegion} onValueChange={setFilterRegion}>
+              <Select value={filterRegion} onValueChange={v => { setFilterRegion(v); setFilterBranchId('all'); }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Filtrar por región" />
                 </SelectTrigger>
@@ -167,7 +168,7 @@ export default function IncidentsPage() {
                   ))}
                 </SelectContent>
               </Select>
-               <Select value={filterBrand} onValueChange={setFilterBrand}>
+               <Select value={filterBrand} onValueChange={v => { setFilterBrand(v); setFilterBranchId('all'); }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Filtrar por marca" />
                 </SelectTrigger>
@@ -179,91 +180,112 @@ export default function IncidentsPage() {
               </Select>
               <Select value={filterBranchId} onValueChange={setFilterBranchId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Filtrar por tienda" />
+                  <SelectValue placeholder="Selecciona una tienda" />
                 </SelectTrigger>
                 <SelectContent>
-                    {availableOptions.branches.map(branch => (
-                        <SelectItem key={(branch as Branch)?.id || 'all'} value={(branch as Branch)?.id || 'all'}>
-                            {branch === 'all' ? 'Todas las Tiendas' : (branch as Branch).name}
-                        </SelectItem>
-                    ))}
+                    <SelectItem value="all">
+                        {userProfile?.role === 'superadmin' ? 'Ver todas las tiendas' : 'Selecciona una tienda'}
+                    </SelectItem>
+                    {availableOptions.branches.filter(b => b !== 'all').map(branch => {
+                        const b = branch as Branch;
+                        const regionMatch = filterRegion === 'all' || b.region === filterRegion;
+                        const brandMatch = filterBrand === 'all' || b.brand === filterBrand;
+                        if(regionMatch && brandMatch) {
+                            return <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                        }
+                        return null;
+                    })}
                 </SelectContent>
               </Select>
-               <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filtrar por categoría" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableOptions.categories.map(cat => (
-                    <SelectItem key={cat as string} value={cat as string}>{cat === 'all' ? 'Todas las Categorías' : cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filtrar por estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableOptions.statuses.map(stat => (
-                    <SelectItem key={stat as string} value={stat as string}>{stat === 'all' ? 'Todos los Estados' : stat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={filterPriority} onValueChange={setFilterPriority}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filtrar por prioridad" />
-                </SelectTrigger>
-                <SelectContent>
-                   {availableOptions.priorities.map(prio => (
-                    <SelectItem key={prio as string} value={prio as string}>{prio === 'all' ? 'Todas las Prioridades' : (prio === 'High' ? 'Alta' : prio === 'Medium' ? 'Media' : 'Baja')}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {showIncidentsTable && (
+                  <>
+                    <Select value={filterCategory} onValueChange={setFilterCategory}>
+                        <SelectTrigger>
+                        <SelectValue placeholder="Filtrar por categoría" />
+                        </SelectTrigger>
+                        <SelectContent>
+                        {availableOptions.categories.map(cat => (
+                            <SelectItem key={cat as string} value={cat as string}>{cat === 'all' ? 'Todas las Categorías' : cat}</SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                    <Select value={filterStatus} onValueChange={setFilterStatus}>
+                        <SelectTrigger>
+                        <SelectValue placeholder="Filtrar por estado" />
+                        </SelectTrigger>
+                        <SelectContent>
+                        {availableOptions.statuses.map(stat => (
+                            <SelectItem key={stat as string} value={stat as string}>{stat === 'all' ? 'Todos los Estados' : stat}</SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                    <Select value={filterPriority} onValueChange={setFilterPriority}>
+                        <SelectTrigger>
+                        <SelectValue placeholder="Filtrar por prioridad" />
+                        </SelectTrigger>
+                        <SelectContent>
+                        {availableOptions.priorities.map(prio => (
+                            <SelectItem key={prio as string} value={prio as string}>{prio === 'all' ? 'Todas las Prioridades' : (prio === 'High' ? 'Alta' : prio === 'Medium' ? 'Media' : 'Baja')}</SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                  </>
+              )}
           </div>
         </CardHeader>
         <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Título</TableHead>
-                  <TableHead>Sucursal</TableHead>
-                  <TableHead>Categoría</TableHead>
-                  <TableHead>Prioridad</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedAndFilteredIncidents.length > 0 ? sortedAndFilteredIncidents.map((incident) => (
-                  <TableRow key={incident.id}>
-                    <TableCell className="font-medium truncate max-w-xs">{incident.title}</TableCell>
-                    <TableCell>{branchMap[incident.branchId]?.name || 'N/A'}</TableCell>
-                    <TableCell>{incident.category}</TableCell>
-                     <TableCell>
-                        <Badge variant={priorityVariantMap[incident.priority]}>
-                            {incident.priority}
-                        </Badge>
-                     </TableCell>
-                    <TableCell>{incident.status}</TableCell>
-                    <TableCell>{format(new Date(incident.createdAt), 'MMM d, yyyy')}</TableCell>
-                    <TableCell className="text-right">
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={`/incidents/${incident.id}`}>
-                            Ver Detalles
-                        </Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                )) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      No se encontraron incidencias con los filtros actuales.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+            {totalLoading ? (
+                 <div className="flex justify-center items-center h-64">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+            ) : showIncidentsTable ? (
+                <Table>
+                <TableHeader>
+                    <TableRow>
+                    <TableHead>Título</TableHead>
+                    <TableHead>Sucursal</TableHead>
+                    <TableHead>Categoría</TableHead>
+                    <TableHead>Prioridad</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {sortedAndFilteredIncidents.length > 0 ? sortedAndFilteredIncidents.map((incident) => (
+                    <TableRow key={incident.id}>
+                        <TableCell className="font-medium truncate max-w-xs">{incident.title}</TableCell>
+                        <TableCell>{branchMap[incident.branchId]?.name || 'N/A'}</TableCell>
+                        <TableCell>{incident.category}</TableCell>
+                        <TableCell>
+                            <Badge variant={priorityVariantMap[incident.priority]}>
+                                {incident.priority}
+                            </Badge>
+                        </TableCell>
+                        <TableCell>{incident.status}</TableCell>
+                        <TableCell>{format(new Date(incident.createdAt), 'MMM d, yyyy')}</TableCell>
+                        <TableCell className="text-right">
+                        <Button asChild variant="outline" size="sm">
+                            <Link href={`/incidents/${incident.id}`}>
+                                Ver Detalles
+                            </Link>
+                        </Button>
+                        </TableCell>
+                    </TableRow>
+                    )) : (
+                    <TableRow>
+                        <TableCell colSpan={7} className="h-24 text-center">
+                        No se encontraron incidencias con los filtros actuales para esta tienda.
+                        </TableCell>
+                    </TableRow>
+                    )}
+                </TableBody>
+                </Table>
+            ) : (
+                <div className="text-center py-16 text-muted-foreground">
+                    <p>Por favor, selecciona una región, marca y tienda para ver las incidencias.</p>
+                </div>
+            )}
         </CardContent>
       </Card>
     </div>
