@@ -32,26 +32,26 @@ export default function SettingsPage() {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
   const router = useRouter();
 
-  const loadData = async () => {
-    if (!firestore) return;
-    
-    setIsLoading(true);
-    try {
-      const settingsData = await getIncidentSettings(firestore);
-      setSettings(settingsData);
-    } catch (error: any) {
-      console.error("Error fetching settings:", error);
-      toast({
-        variant: 'destructive',
-        title: 'Error al Cargar',
-        description: 'No se pudieron cargar los ajustes.',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
+    async function loadData() {
+      if (!firestore) return;
+      
+      setIsLoading(true);
+      try {
+        const settingsData = await getIncidentSettings(firestore);
+        setSettings(settingsData);
+      } catch (error: any) {
+        console.error("Error fetching settings:", error);
+        toast({
+          variant: 'destructive',
+          title: 'Error al Cargar',
+          description: 'No se pudieron cargar los ajustes.',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
     if (isProfileLoading) return;
 
     if (!userProfile) {
@@ -72,13 +72,20 @@ export default function SettingsPage() {
     if (newCategory && !settings.categories.find(c => c.name.toLowerCase() === newCategory.toLowerCase())) {
         setIsSaving(true);
         try {
-            await addIncidentCategory(firestore, newCategory);
+            const addedCategory = await addIncidentCategory(firestore, newCategory);
+            
+            // Optimistic UI update
+            setSettings(prevSettings => {
+              if (!prevSettings) return null;
+              const newCategories = [...prevSettings.categories, addedCategory].sort((a, b) => a.name.localeCompare(b.name));
+              return { ...prevSettings, categories: newCategories };
+            });
+
             setNewCategory('');
             toast({
                 title: 'Categoría Agregada',
                 description: `La categoría "${newCategory}" ha sido creada.`,
             });
-            await loadData(); // Recargar datos para mostrar la nueva categoría
         } catch (error) {
             toast({
                 variant: 'destructive',
@@ -99,24 +106,33 @@ export default function SettingsPage() {
   };
 
   const handleRemoveCategory = async (categoryId: string, categoryName: string) => {
-    if (!firestore) return;
-    setIsSaving(true);
+    if (!firestore || !settings) return;
+    
+    // Optimistic UI update
+    const originalSettings = settings;
+    setSettings(prevSettings => {
+        if (!prevSettings) return null;
+        return {
+            ...prevSettings,
+            categories: prevSettings.categories.filter(c => c.id !== categoryId)
+        };
+    });
+
     try {
         await deleteIncidentCategory(firestore, categoryId);
         toast({
             title: 'Categoría Eliminada',
             description: `La categoría "${categoryName}" ha sido eliminada.`,
         });
-        await loadData(); // Recargar datos
     } catch (error) {
-         toast({
+         // Revert on error
+        setSettings(originalSettings);
+        toast({
             variant: 'destructive',
             title: 'Error al Eliminar',
             description: 'No tienes permisos para eliminar categorías.',
         });
         console.error("Error deleting category:", error);
-    } finally {
-        setIsSaving(false);
     }
   };
   
