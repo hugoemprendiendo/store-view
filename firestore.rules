@@ -13,8 +13,9 @@ service cloud.firestore {
     
     function isSuperAdmin() {
       // This relies on the user having read access to their own document.
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
       return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
-          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superadmin';
+          && userDoc.data.role == 'superadmin';
     }
     
     function isAssignedToBranch(branchId) {
