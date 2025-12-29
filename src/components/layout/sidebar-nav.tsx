@@ -9,8 +9,9 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { Building2, LayoutGrid, Settings, Store, LogOut, Users, List } from 'lucide-react';
+import { Building2, LayoutGrid, Settings, Store, LogOut, Users, List, PanelLeft } from 'lucide-react';
 import { useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -56,12 +57,15 @@ export function SidebarNav() {
   return (
     <>
       <SidebarHeader className="p-4">
-        <Link href="/" className="flex items-center gap-2">
-          <Store className="size-7 text-accent" />
-          <h2 className="text-xl font-bold text-foreground font-headline">
-            StoreView
-          </h2>
-        </Link>
+        <div className="flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-2">
+            <Store className="size-7 text-accent" />
+            <span className="text-xl font-bold text-foreground font-headline group-data-[collapsible=icon]:hidden">
+                StoreView
+            </span>
+            </Link>
+            <SidebarTrigger className="hidden md:flex" />
+        </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarMenu>

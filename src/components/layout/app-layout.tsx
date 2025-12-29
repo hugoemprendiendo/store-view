@@ -3,6 +3,7 @@ import {
   SidebarProvider,
   Sidebar,
   SidebarInset,
+  SidebarRail,
 } from '@/components/ui/sidebar';
 import { SidebarNav } from './sidebar-nav';
 import { useUser } from '@/firebase';
@@ -17,7 +18,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <Sidebar>
+      <Sidebar collapsible="icon">
+        <SidebarRail />
         <SidebarNav />
       </Sidebar>
       <SidebarInset className="p-4 md:p-6">{children}</SidebarInset>
