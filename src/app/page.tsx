@@ -1,4 +1,3 @@
-
 'use client';
 import { Header } from '@/components/layout/header';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
@@ -42,13 +41,11 @@ export default function DashboardPage() {
       setIsLoadingData(true);
       try {
         let branchesData: Branch[] = [];
-        let incidentsData: Incident[] = [];
         
         // 1. Fetch branches based on user role
         if (userProfile.role === 'superadmin') {
           branchesData = await getBranches(firestore);
         } else if (userProfile.assignedBranches && Object.keys(userProfile.assignedBranches).length > 0) {
-          // CORRECT: Use Object.keys() because 'assignedBranches' IS a map/object.
           const branchIds = Object.keys(userProfile.assignedBranches);
           branchesData = await getBranchesByIds(firestore, branchIds);
         }
@@ -57,6 +54,7 @@ export default function DashboardPage() {
         setUserBranches(branchesData);
 
         const accessibleBranchIds = branchesData.map(b => b.id);
+        let incidentsData: Incident[] = [];
 
         // 2. Fetch incidents only for the branches the user has access to.
         if (accessibleBranchIds.length > 0) {

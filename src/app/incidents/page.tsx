@@ -55,33 +55,29 @@ export default function IncidentsPage() {
         let incidentsData: Incident[] = [];
 
         if (userProfile.role === 'superadmin') {
-          // 1. Superadmin: fetch all branches and all incidents
-          const [allBranches, allIncidents] = await Promise.all([
-            getBranches(firestore),
-            getDocs(collection(firestore, 'incidents'))
-          ]);
-          branchesData = allBranches;
-          incidentsData = allIncidents.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident));
-
+          // 1. Superadmin: fetch all branches
+          branchesData = await getBranches(firestore);
         } else if (userProfile.assignedBranches && Object.keys(userProfile.assignedBranches).length > 0) {
-          // 2. Normal user: fetch assigned branches, then their incidents
+          // 2. Normal user: fetch assigned branches
           const branchIds = Object.keys(userProfile.assignedBranches);
           branchesData = await getBranchesByIds(firestore, branchIds);
-          
-          if (branchIds.length > 0) {
-              const chunks: string[][] = [];
-              for (let i = 0; i < branchIds.length; i += 30) {
-                  chunks.push(branchIds.slice(i, i + 30));
-              }
-              const incidentPromises = chunks.map(chunk => 
-                  getDocs(query(collection(firestore, 'incidents'), where('branchId', 'in', chunk)))
-              );
-              const incidentsSnapshots = await Promise.all(incidentPromises);
-              incidentsData = incidentsSnapshots.flatMap(snap => snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident)));
-          }
         }
         
         setUserBranches(branchesData);
+        
+        const accessibleBranchIds = branchesData.map(b => b.id);
+        if (accessibleBranchIds.length > 0) {
+            const chunks: string[][] = [];
+            for (let i = 0; i < accessibleBranchIds.length; i += 30) {
+                chunks.push(accessibleBranchIds.slice(i, i + 30));
+            }
+            const incidentPromises = chunks.map(chunk => 
+                getDocs(query(collection(firestore, 'incidents'), where('branchId', 'in', chunk)))
+            );
+            const incidentsSnapshots = await Promise.all(incidentPromises);
+            incidentsData = incidentsSnapshots.flatMap(snap => snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident)));
+        }
+        
         setIncidents(incidentsData);
         
       } catch (error) {
@@ -185,7 +181,7 @@ export default function IncidentsPage() {
                <Select value={filterBrand} onValueChange={setFilterBrand}>
                 <SelectTrigger>
                   <SelectValue placeholder="Filtrar por marca" />
-                </SelectTrigger>
+                </Trigger>
                 <SelectContent>
                   {availableOptions.brands.map(brand => (
                     <SelectItem key={brand as string} value={brand as string}>{brand === 'all' ? 'Todas las Marcas' : brand}</SelectItem>

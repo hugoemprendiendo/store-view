@@ -85,8 +85,8 @@ export default function BranchDetailPage() {
             description: `El estado de la incidencia cambió a "${newStatus}".`,
         });
         
-        await revalidateIncidentPaths(incidentId, id);
-        router.refresh();
+        // No need to call revalidatePath here as useCollection handles real-time updates.
+        // router.refresh() is also not needed for the same reason.
 
     } catch (error) {
       toast({
