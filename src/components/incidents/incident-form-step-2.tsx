@@ -5,13 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, Cpu, DollarSign, Info } from 'lucide-react';
-import { getAIAnalysis } from '@/app/actions';
+import { getAIAnalysis, revalidateIncidentPaths } from '@/app/actions';
 import { IncidentReviewForm } from '@/components/incidents/incident-form';
 import type { IncidentData } from '@/app/incidents/new/page';
 import type { AnalyzeIncidentReportOutput } from '@/ai/flows/analyze-incident-report';
 import Image from 'next/image';
 import { calculateCost } from '@/lib/ai-pricing';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { getIncidentSettings } from '@/lib/data';
+import { useFirestore } from '@/firebase';
+import type { IncidentSettings } from '@/lib/types';
+import { useRouter } from 'next/navigation';
 
 interface IncidentFormStep2Props {
     incidentData: IncidentData;
@@ -20,22 +24,29 @@ interface IncidentFormStep2Props {
 
 export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Props) {
     const { toast } = useToast();
+    const router = useRouter();
+    const firestore = useFirestore();
     const [analysisResult, setAnalysisResult] = useState<AnalyzeIncidentReportOutput | null>(null);
+    const [incidentSettings, setIncidentSettings] = useState<IncidentSettings | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(true);
     const [estimatedCost, setEstimatedCost] = useState(0);
 
     useEffect(() => {
         const analyze = async () => {
+            if (!firestore) return;
             setIsAnalyzing(true);
             toast({
                 title: 'Analizando Incidencia...',
                 description: 'La IA está generando el reporte de incidencia. Esto puede tardar un momento.',
             });
 
-            // Do not send image for analysis
+            const settings = await getIncidentSettings(firestore);
+            setIncidentSettings(settings);
+
             const result = await getAIAnalysis({
                 audioTranscription: incidentData.audioTranscription,
                 textDescription: incidentData.textDescription,
+                incidentSettings: settings,
             });
 
             if (result.success && result.data) {
@@ -69,9 +80,15 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
         };
 
         analyze();
-    }, [incidentData, toast]);
+    }, [incidentData, toast, firestore]);
 
-    if (isAnalyzing) {
+    const handleFormSubmitSuccess = (incidentId: string, branchId: string) => {
+        revalidateIncidentPaths(incidentId, branchId).then(() => {
+            router.push(`/branches/${branchId}`);
+        });
+    };
+
+    if (isAnalyzing || !incidentSettings) {
         return (
             <Card>
                 <CardHeader>
@@ -79,7 +96,7 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
                 </CardHeader>
                 <CardContent className="flex flex-col items-center justify-center gap-4 py-16">
                     <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                    <p className="text-muted-foreground">Analizando datos de la incidencia y generando reporte...</p>
+                    <p className="text-muted-foreground">Analizando datos y cargando configuración...</p>
                 </CardContent>
             </Card>
         );
@@ -89,35 +106,19 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
     const audioTokens = incidentData.audioTokens || 0;
     const totalTokens = analysisTokens + audioTokens;
 
-    if (!analysisResult) {
-        return (
-             <Card>
-                <CardHeader>
-                    <CardTitle>Análisis Fallido</CardTitle>
-                     <CardDescription>
-                        La IA no pudo generar un reporte. Puedes volver e intentarlo de nuevo, o llenar el formulario manualmente.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <IncidentReviewForm initialData={{
-                        suggestedTitle: '',
-                        suggestedCategory: '',
-                        suggestedPriority: 'Medium',
-                        suggestedStatus: 'Abierto',
-                        suggestedDescription: incidentData.textDescription || '',
-                        photoUrl: incidentData.photoDataUri,
-                        audioTranscription: incidentData.audioTranscription,
-                        suggestedPriorityReasoning: '',
-                    }} />
-                </CardContent>
-                <CardFooter className="flex justify-start">
-                    <Button variant="outline" onClick={onBack}>
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Volver al Paso 1
-                    </Button>
-                </CardFooter>
-            </Card>
-        )
+    const initialFormData = analysisResult ? {
+        ...analysisResult,
+        photoUrl: incidentData.photoDataUri,
+        audioTranscription: incidentData.audioTranscription,
+    } : {
+        suggestedTitle: '',
+        suggestedCategory: '',
+        suggestedPriority: 'Medium',
+        suggestedStatus: 'Abierto',
+        suggestedDescription: incidentData.textDescription || '',
+        photoUrl: incidentData.photoDataUri,
+        audioTranscription: incidentData.audioTranscription,
+        suggestedPriorityReasoning: '',
     }
 
     return (
@@ -125,11 +126,14 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
             <CardHeader>
                 <CardTitle>Paso 2: Revisar y Enviar</CardTitle>
                 <CardDescription>
-                    La IA ha generado un borrador del reporte de incidencia. Por favor, revisa, haz los cambios necesarios y envíalo.
+                    {analysisResult 
+                        ? 'La IA ha generado un borrador del reporte de incidencia. Por favor, revisa, haz los cambios necesarios y envíalo.'
+                        : 'La IA no pudo generar un reporte. Puedes volver e intentarlo de nuevo, o llenar el formulario manualmente.'
+                    }
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                {analysisResult.suggestedPriorityReasoning && (
+                {analysisResult?.suggestedPriorityReasoning && (
                     <Alert className="mb-6">
                         <Info className="h-4 w-4" />
                         <AlertTitle>Justificación de la Prioridad</AlertTitle>
@@ -162,11 +166,11 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
                         </div>
                     )}
                 </div>
-                <IncidentReviewForm initialData={{
-                    ...analysisResult,
-                    photoUrl: incidentData.photoDataUri,
-                    audioTranscription: incidentData.audioTranscription,
-                }} />
+                <IncidentReviewForm 
+                    initialData={initialFormData}
+                    incidentSettings={incidentSettings}
+                    onSuccess={handleFormSubmitSuccess}
+                />
             </CardContent>
             <CardFooter className="flex flex-col items-start gap-4">
                 <Button variant="outline" onClick={onBack}>

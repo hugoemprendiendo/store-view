@@ -139,6 +139,30 @@
         }
       },
       "required": ["name", "email", "createdAt", "role"]
+    },
+    "IncidentSettings": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Incident Settings",
+      "type": "object",
+      "description": "Configuration for incident reporting, such as available categories, priorities, and statuses.",
+      "properties": {
+        "categories": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of available incident categories."
+        },
+        "priorities": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of available incident priorities."
+        },
+        "statuses": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of available incident statuses."
+        }
+      },
+      "required": ["categories", "priorities", "statuses"]
     }
   },
   "auth": {
@@ -171,6 +195,12 @@
             "$ref": "#/entities/UserProfile"
         },
         "description": "Stores user profile information."
+    },
+    "/app_settings/incident_config": {
+        "schema": {
+            "$ref": "#/entities/IncidentSettings"
+        },
+        "description": "Stores the global configuration for incident categories, priorities, and statuses."
     }
   }
 }

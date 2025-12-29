@@ -31,6 +31,13 @@ export type UserProfile = {
   assignedBranches?: Record<string, boolean>;
 }
 
+export type IncidentSettings = {
+  categories: string[];
+  priorities: ('Low' | 'Medium' | 'High')[];
+  statuses: string[];
+}
+
+// These are now fallbacks or defaults, the source of truth is in Firestore.
 export const IncidentCategories = [
   'Equipo de Cocina',
   'Punto de Venta (POS)',

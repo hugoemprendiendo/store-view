@@ -12,31 +12,20 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { IncidentCategories, IncidentPriorities, IncidentStatuses } from '@/lib/types';
+import type { IncidentSettings } from '@/lib/types';
 import { Loader2, Send } from 'lucide-react';
 import React from 'react';
 import type { AnalyzeIncidentReportOutput } from '@/ai/flows/analyze-incident-report';
 import { useFirestore } from '@/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 
-const incidentSchema = z.object({
-  branchId: z.string().min(1, 'La sucursal es obligatoria.'),
-  title: z.string().min(3, 'El título debe tener al menos 3 caracteres.'),
-  description: z.string().optional(),
-  audioTranscription: z.string().optional(),
-  photoUrl: z.string().optional(),
-  category: z.string().min(1, 'La categoría es obligatoria.'),
-  priority: z.enum(IncidentPriorities),
-  status: z.enum(IncidentStatuses).default('Abierto'),
-});
-
-type IncidentFormValues = z.infer<typeof incidentSchema>;
-
 interface IncidentReviewFormProps {
   initialData: AnalyzeIncidentReportOutput & {
     photoUrl?: string;
     audioTranscription?: string;
   };
+  incidentSettings: IncidentSettings;
+  onSuccess: (incidentId: string, branchId: string) => void;
 }
 
 // Helper function to find a value in an array, ignoring case.
@@ -45,21 +34,33 @@ const findCaseInsensitive = (array: readonly string[], value: string): string | 
   return array.find(item => item.toLowerCase() === value.toLowerCase());
 }
 
-export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
+export function IncidentReviewForm({ initialData, incidentSettings, onSuccess }: IncidentReviewFormProps) {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const { toast } = useToast();
   const firestore = useFirestore();
   const branchId = searchParams.get('branchId');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  const incidentSchema = z.object({
+    branchId: z.string().min(1, 'La sucursal es obligatoria.'),
+    title: z.string().min(3, 'El título debe tener al menos 3 caracteres.'),
+    description: z.string().optional(),
+    audioTranscription: z.string().optional(),
+    photoUrl: z.string().optional(),
+    category: z.string().min(1, 'La categoría es obligatoria.'),
+    priority: z.enum(incidentSettings.priorities as [string, ...string[]]),
+    status: z.enum(incidentSettings.statuses as [string, ...string[]]).default('Abierto'),
+  });
+
+  type IncidentFormValues = z.infer<typeof incidentSchema>;
 
   const form = useForm<IncidentFormValues>({
     resolver: zodResolver(incidentSchema),
     defaultValues: {
       branchId: branchId || '',
       title: initialData.suggestedTitle || '',
-      category: findCaseInsensitive(IncidentCategories, initialData.suggestedCategory) || '',
-      priority: (findCaseInsensitive(IncidentPriorities, initialData.suggestedPriority as any) as any) || 'Medium',
+      category: findCaseInsensitive(incidentSettings.categories, initialData.suggestedCategory) || '',
+      priority: (findCaseInsensitive(incidentSettings.priorities, initialData.suggestedPriority as any) as any) || 'Medium',
       status: 'Abierto',
       description: initialData.suggestedDescription || '',
       audioTranscription: initialData.audioTranscription || '',
@@ -100,13 +101,14 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
             }
         });
 
-        await addDoc(incidentsCol, incidentToCreate);
+        const docRef = await addDoc(incidentsCol, incidentToCreate);
       
         toast({
             title: 'Incidencia Reportada',
             description: 'La nueva incidencia ha sido creada exitosamente.',
         });
-        router.push(`/branches/${data.branchId}`);
+        
+        onSuccess(docRef.id, data.branchId);
 
     } catch (error) {
         console.error("Error in createIncident action:", error);
@@ -168,7 +170,7 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {IncidentCategories.map((cat) => (
+                      {incidentSettings.categories.map((cat) => (
                         <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                       ))}
                     </SelectContent>
@@ -190,7 +192,7 @@ export function IncidentReviewForm({ initialData }: IncidentReviewFormProps) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {IncidentPriorities.map((p) => (
+                      {incidentSettings.priorities.map((p) => (
                         <SelectItem key={p} value={p}>{p === 'High' ? 'Alta' : p === 'Medium' ? 'Media' : 'Baja'}</SelectItem>
                       ))}
                     </SelectContent>

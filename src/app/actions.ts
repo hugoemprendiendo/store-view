@@ -35,4 +35,5 @@ export async function revalidateIncidentPaths(incidentId: string, branchId: stri
     revalidatePath('/');
     revalidatePath(`/branches/${branchId}`);
     revalidatePath(`/incidents/${incidentId}`);
+    revalidatePath('/settings');
 }

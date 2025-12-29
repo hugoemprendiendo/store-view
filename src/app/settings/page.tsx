@@ -6,42 +6,89 @@ import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { IncidentCategories as defaultCategories, IncidentPriorities, IncidentStatuses } from '@/lib/types';
+import type { IncidentSettings } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { X, Plus, Loader2, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import { useFirestore } from '@/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
-const priorityTextMap = {
+const priorityTextMap: Record<string, string> = {
     Low: 'Baja',
     Medium: 'Media',
     High: 'Alta',
 } as const;
 
 export default function SettingsPage() {
-  const [categories, setCategories] = useState(defaultCategories);
+  const [settings, setSettings] = useState<IncidentSettings | null>(null);
   const [newCategory, setNewCategory] = useState('');
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
   const { toast } = useToast();
   const router = useRouter();
-  const { userProfile, isLoading } = useUserProfile();
+  const firestore = useFirestore();
+  const { userProfile, isLoading: isProfileLoading } = useUserProfile();
 
   useEffect(() => {
-    if (!isLoading && userProfile?.role !== 'superadmin') {
+    if (!isLoadingSettings && userProfile?.role !== 'superadmin') {
       router.push('/');
     }
-  }, [isLoading, userProfile, router]);
+  }, [isLoadingSettings, userProfile, router]);
+  
+  useEffect(() => {
+    async function fetchSettings() {
+      if (!firestore) return;
+      setIsLoadingSettings(true);
+      const settingsRef = doc(firestore, 'app_settings', 'incident_config');
+      const settingsSnap = await getDoc(settingsRef);
+      if (settingsSnap.exists()) {
+        setSettings(settingsSnap.data() as IncidentSettings);
+      } else {
+        // Handle case where settings doc doesn't exist yet
+        setSettings({ categories: [], priorities: [], statuses: [] });
+      }
+      setIsLoadingSettings(false);
+    }
+    fetchSettings();
+  }, [firestore]);
 
+
+  const handleSaveCategories = async (newCategories: string[]) => {
+    if (!firestore || !settings) return;
+    
+    setIsSaving(true);
+    const updatedSettings = { ...settings, categories: newCategories };
+    
+    const settingsRef = doc(firestore, 'app_settings', 'incident_config');
+    try {
+      await setDoc(settingsRef, updatedSettings, { merge: true });
+      setSettings(updatedSettings);
+      toast({
+        title: 'Categorías guardadas',
+        description: 'La lista de categorías ha sido actualizada.',
+      });
+    } catch (error) {
+      console.error("Error saving categories:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Error al Guardar',
+        description: 'No se pudieron guardar los cambios en las categorías.',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleAddCategory = () => {
-    if (newCategory && !categories.includes(newCategory)) {
-      setCategories([...categories, newCategory]);
+    if (!settings) return;
+    if (newCategory && !settings.categories.includes(newCategory)) {
+      const newCategories = [...settings.categories, newCategory];
+      handleSaveCategories(newCategories);
       setNewCategory('');
-      toast({
-        title: 'Categoría agregada',
-        description: `"${newCategory}" ha sido agregada. Nota: Este es un cambio del lado del cliente y no persistirá.`,
-      });
-    } else if (categories.includes(newCategory)) {
+    } else if (settings.categories.includes(newCategory)) {
       toast({
         variant: 'destructive',
         title: 'Categoría Duplicada',
@@ -51,14 +98,14 @@ export default function SettingsPage() {
   };
 
   const handleRemoveCategory = (categoryToRemove: string) => {
-    setCategories(categories.filter(category => category !== categoryToRemove));
-    toast({
-        title: 'Categoría Eliminada',
-        description: `"${categoryToRemove}" ha sido eliminada. Nota: Este es un cambio del lado del cliente y no persistirá.`,
-    });
+    if (!settings) return;
+    const newCategories = settings.categories.filter(category => category !== categoryToRemove);
+    handleSaveCategories(newCategories);
   };
+  
+  const totalLoading = isLoadingSettings || isProfileLoading || !settings;
 
-  if (isLoading || !userProfile) {
+  if (totalLoading) {
     return (
       <div className="flex flex-col gap-6">
         <Header title="Configuración" />
@@ -69,7 +116,7 @@ export default function SettingsPage() {
     );
   }
 
-  if (userProfile.role !== 'superadmin') {
+  if (userProfile?.role !== 'superadmin') {
     return (
         <div className="flex flex-col gap-4">
             <Header title="Acceso Denegado" />
@@ -103,15 +150,22 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-2">
-                {categories.map(category => (
+                {settings.categories.map(category => (
                   <Badge key={category} variant="secondary" className="text-base pr-2">
                     {category}
-                    <button onClick={() => handleRemoveCategory(category)} className="ml-2 rounded-full hover:bg-muted-foreground/20 p-0.5">
+                    <button 
+                      onClick={() => handleRemoveCategory(category)} 
+                      className="ml-2 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                      disabled={isSaving}
+                    >
                       <X className="h-3 w-3" />
                       <span className="sr-only">Eliminar {category}</span>
                     </button>
                   </Badge>
                 ))}
+                {settings.categories.length === 0 && (
+                    <p className="text-sm text-muted-foreground">No hay categorías definidas.</p>
+                )}
               </div>
               <div className="flex w-full max-w-sm items-center space-x-2">
                 <Input
@@ -120,9 +174,11 @@ export default function SettingsPage() {
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                  disabled={isSaving}
                 />
-                <Button type="button" onClick={handleAddCategory}>
-                  <Plus className="mr-2 h-4 w-4" /> Agregar
+                <Button type="button" onClick={handleAddCategory} disabled={isSaving}>
+                  {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                   Agregar
                 </Button>
               </div>
             </CardContent>
@@ -135,10 +191,10 @@ export default function SettingsPage() {
               <CardDescription>Estos son los niveles de prioridad para una incidencia. (Solo lectura)</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
-              {IncidentPriorities.map(priority => (
+              {settings.priorities.map(priority => (
                 <Badge key={priority} variant={
                   priority === 'High' ? 'destructive' : priority === 'Medium' ? 'default' : 'secondary'
-                } className="text-base">{priorityTextMap[priority]}</Badge>
+                } className="text-base">{priorityTextMap[priority] || priority}</Badge>
               ))}
             </CardContent>
           </Card>
@@ -150,7 +206,7 @@ export default function SettingsPage() {
               <CardDescription>Este es el ciclo de vida de un reporte de incidencia. (Solo lectura)</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
-              {IncidentStatuses.map(status => (
+              {settings.statuses.map(status => (
                 <Badge key={status} variant="secondary" className="text-base">{status}</Badge>
               ))}
             </CardContent>
