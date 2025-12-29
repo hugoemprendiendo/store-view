@@ -17,6 +17,7 @@ service cloud.firestore {
 
     function isSuperAdmin() {
       // Check for the existence of the user document and then check the role property.
+      // This function relies on the user having read access to their own document.
       return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
           && getUserData(request.auth.uid).role == 'superadmin';
     }
@@ -40,8 +41,9 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow create: if isCreatingOwnProfile(userId);
-      // A user can always read their own profile. Superadmins can list/update any.
+      // A user MUST be able to read their own document for isSuperAdmin() to work.
       allow get: if isOwner(userId);
+      // Listing and updating is restricted to superadmins.
       allow list, update: if isSuperAdmin();
     }
 

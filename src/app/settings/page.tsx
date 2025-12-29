@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { X, Plus, Loader2, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const priorityTextMap: Record<string, string> = {
@@ -33,16 +33,13 @@ export default function SettingsPage() {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
 
   useEffect(() => {
+    // Wait until the user profile has finished loading
     if (isProfileLoading) {
       return; 
     }
 
-    if (!userProfile) {
-      router.push('/');
-      return;
-    }
-    
-    if (userProfile.role !== 'superadmin') {
+    // If loading is finished and there's no user profile, or user is not superadmin, redirect.
+    if (!userProfile || userProfile.role !== 'superadmin') {
       toast({
           variant: 'destructive',
           title: 'Acceso Denegado',
@@ -52,6 +49,7 @@ export default function SettingsPage() {
       return;
     }
     
+    // Now that we've confirmed the user is a superadmin, load the settings.
     const loadSettings = async () => {
       if (!firestore) return;
       setIsLoading(true);
@@ -61,14 +59,20 @@ export default function SettingsPage() {
         if (settingsSnap.exists()) {
           setSettings(settingsSnap.data() as IncidentSettings);
         } else {
+          // This can happen on first load before seeding is complete.
+          // Providing a default empty state is better than crashing.
           setSettings({ categories: [], priorities: [], statuses: [] });
+          toast({
+            title: 'Configuración no encontrada',
+            description: 'Creando documento de configuración inicial.'
+          })
         }
       } catch (error) {
         console.error("Error fetching settings:", error);
         toast({
           variant: 'destructive',
           title: 'Error al Cargar',
-          description: 'No se pudo cargar la configuración de la aplicación.',
+          description: 'No se pudo cargar la configuración de la aplicación. Revisa los permisos de Firestore.',
         });
       } finally {
         setIsLoading(false);
@@ -89,6 +93,7 @@ export default function SettingsPage() {
     const settingsRef = doc(firestore, 'app_settings', 'incident_config');
     
     try {
+      // Using merge: true is safer as it won't overwrite other settings fields
       await setDoc(settingsRef, updatedSettings, { merge: true });
       setSettings(updatedSettings);
       toast({
@@ -99,7 +104,7 @@ export default function SettingsPage() {
        toast({
           variant: 'destructive',
           title: 'Error al Guardar',
-          description: 'No se pudieron guardar las categorías. Verifica tus permisos.',
+          description: 'No se pudieron guardar las categorías. Verifica tus permisos de escritura.',
         });
         console.error("Error saving categories:", error);
     } finally {
@@ -128,6 +133,7 @@ export default function SettingsPage() {
     handleSaveCategories(newCategories);
   };
   
+  // Combines all loading states
   const totalLoading = isProfileLoading || isLoading;
 
   if (totalLoading) {
@@ -141,7 +147,8 @@ export default function SettingsPage() {
     );
   }
 
-  if (userProfile?.role !== 'superadmin') {
+  // This check is redundant due to the useEffect, but good for safety.
+  if (!userProfile || userProfile.role !== 'superadmin') {
     return (
         <div className="flex flex-col gap-4">
             <Header title="Acceso Denegado" />
@@ -201,7 +208,7 @@ export default function SettingsPage() {
                   onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
                   disabled={isSaving}
                 />
-                <Button type="button" onClick={handleAddCategory} disabled={isSaving}>
+                <Button type="button" onClick={handleAddCategory} disabled={isSaving || !newCategory}>
                   {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
                    Agregar
                 </Button>
