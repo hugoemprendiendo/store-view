@@ -33,22 +33,23 @@ export default function SettingsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isProfileLoading && userProfile?.role !== 'superadmin') {
-      router.push('/');
-    }
-  }, [isProfileLoading, userProfile, router]);
-
-
-  useEffect(() => {
     const loadData = async () => {
-      if (!firestore || !userProfile || userProfile.role !== 'superadmin') {
-        setIsLoading(false);
+      // Wait until user profile has been loaded
+      if (isProfileLoading) {
+        setIsLoading(true);
         return;
       }
-      
-      setIsLoading(true);
+
+      // If loading is finished and there's no profile or the user is not a superadmin, redirect.
+      if (!userProfile || userProfile.role !== 'superadmin') {
+        router.push('/');
+        return;
+      }
+
+      // Now that we know we are a superadmin, try to fetch the settings.
+      if (!firestore) return;
+
       const settingsRef = doc(firestore, 'app_settings', 'incident_config');
-      
       try {
         const settingsSnap = await getDoc(settingsRef);
         if (settingsSnap.exists()) {
@@ -71,13 +72,8 @@ export default function SettingsPage() {
       }
     };
     
-    if (!isProfileLoading && userProfile) {
-      loadData();
-    } else if (!isProfileLoading) {
-      setIsLoading(false);
-    }
-
-  }, [firestore, toast, userProfile, isProfileLoading]);
+    loadData();
+  }, [isProfileLoading, userProfile, firestore, router, toast]);
 
 
   const handleSaveCategories = async (newCategories: string[]) => {
@@ -128,7 +124,7 @@ export default function SettingsPage() {
     handleSaveCategories(newCategories);
   };
   
-  if (isLoading || isProfileLoading || (userProfile && userProfile.role !== 'superadmin')) {
+  if (isLoading || isProfileLoading) {
     return (
       <div className="flex flex-col gap-6">
         <Header title="Configuración" />
@@ -137,6 +133,12 @@ export default function SettingsPage() {
         </div>
       </div>
     );
+  }
+
+  // If after loading, there's no user profile or the user is not an admin,
+  // we show nothing (as the redirect will be happening).
+  if (!userProfile || userProfile.role !== 'superadmin') {
+      return null;
   }
 
   return (
