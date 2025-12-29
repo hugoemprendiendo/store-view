@@ -33,32 +33,47 @@ export default function SettingsPage() {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
 
   useEffect(() => {
-    async function fetchSettings() {
-      // Don't fetch until profile is loaded and confirmed to be superadmin
-      if (isProfileLoading || !firestore || !userProfile) {
+    // This effect handles both fetching data and protecting the route.
+    const loadData = async () => {
+      // 1. Wait for the user profile to finish loading.
+      if (isProfileLoading) {
+        return;
+      }
+
+      // 2. Once loaded, check the user's role.
+      if (userProfile?.role !== 'superadmin') {
+        // If not a superadmin, redirect and stop execution.
+        router.push('/');
         return;
       }
       
-      // If the user is not a superadmin, stop and redirect.
-      if (userProfile.role !== 'superadmin') {
-          router.push('/');
-          return;
+      // 3. If user is a superadmin, proceed to fetch settings from Firestore.
+      if (firestore) {
+        setIsLoading(true);
+        try {
+          const settingsRef = doc(firestore, 'app_settings', 'incident_config');
+          const settingsSnap = await getDoc(settingsRef);
+          if (settingsSnap.exists()) {
+            setSettings(settingsSnap.data() as IncidentSettings);
+          } else {
+            // Handle case where settings doc doesn't exist yet
+            setSettings({ categories: [], priorities: [], statuses: [] });
+          }
+        } catch (error) {
+           console.error("Failed to fetch settings:", error);
+           toast({
+             variant: 'destructive',
+             title: 'Error al Cargar',
+             description: 'No se pudo cargar la configuración de la aplicación.',
+           });
+        } finally {
+          setIsLoading(false);
+        }
       }
-
-      setIsLoading(true);
-      const settingsRef = doc(firestore, 'app_settings', 'incident_config');
-      const settingsSnap = await getDoc(settingsRef);
-      if (settingsSnap.exists()) {
-        setSettings(settingsSnap.data() as IncidentSettings);
-      } else {
-        // Handle case where settings doc doesn't exist yet
-        setSettings({ categories: [], priorities: [], statuses: [] });
-      }
-      setIsLoading(false);
-    }
+    };
     
-    fetchSettings();
-  }, [firestore, isProfileLoading, userProfile, router]);
+    loadData();
+  }, [isProfileLoading, userProfile, firestore, router, toast]);
 
 
   const handleSaveCategories = async (newCategories: string[]) => {
@@ -108,7 +123,8 @@ export default function SettingsPage() {
     handleSaveCategories(newCategories);
   };
   
-  const totalLoading = isLoading || isProfileLoading;
+  // Combines initial profile loading and settings fetching
+  const totalLoading = isProfileLoading || isLoading;
 
   if (totalLoading) {
     return (
@@ -121,6 +137,8 @@ export default function SettingsPage() {
     );
   }
 
+  // This will render if the user profile is loaded but they are not a superadmin,
+  // just before the redirection kicks in.
   if (userProfile?.role !== 'superadmin') {
     return (
         <div className="flex flex-col gap-4">
