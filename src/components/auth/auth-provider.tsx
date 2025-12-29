@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // If user is logged in, show the page content within the main app layout
   if (user) {
-      return <AppLayout>{children}</AppLayout>;
+      return <>{children}</>;
   }
 
   // Fallback for edge cases, e.g., user becomes null while on a private route before redirect happens
