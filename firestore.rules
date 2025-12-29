@@ -43,6 +43,7 @@ service cloud.firestore {
 
     match /branches/{branchId} {
       allow get: if isAssignedToBranch(branchId);
+      // Superadmin can list all branches. Regular users get their branches from their profile.
       allow list: if isSuperAdmin();
       allow create, update, delete: if isSuperAdmin();
     }

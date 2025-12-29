@@ -34,8 +34,10 @@ export default function DashboardPage() {
 
         // 1. Fetch branches based on user role
         if (userProfile.role === 'superadmin') {
+          // Superadmin gets all branches
           branchesData = await getBranches(firestore);
         } else if (userProfile.assignedBranches) {
+          // Normal user gets only assigned branches
           const branchIds = Object.keys(userProfile.assignedBranches);
           if (branchIds.length > 0) {
             branchesData = await getBranchesByIds(firestore, branchIds);
@@ -60,7 +62,12 @@ export default function DashboardPage() {
            incidentsData = allSnapshots.flatMap(snapshot =>
              snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Incident))
            );
+        } else if (userProfile.role === 'superadmin') {
+            // Superadmin has no branches assigned but should see all incidents
+            const incidentsSnapshot = await getDocs(collection(firestore, 'incidents'));
+            incidentsData = incidentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data()} as Incident));
         }
+
         setIncidents(incidentsData);
       } catch (e) {
         console.error("Error fetching dashboard data: ", e);

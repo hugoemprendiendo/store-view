@@ -41,7 +41,10 @@ export default function IncidentsPage() {
 
   useEffect(() => {
     async function fetchData() {
-      if (!firestore || !userProfile) return;
+      if (!firestore || !userProfile) {
+        if(!isProfileLoading) setIsLoading(false);
+        return;
+      };
       setIsLoading(true);
       
       let incidentsData: Incident[] = [];
@@ -102,7 +105,11 @@ export default function IncidentsPage() {
   const filteredIncidents = useMemo(() => {
     return incidents.filter(i => {
       const branch = branchMap[i.branchId];
-      if (!branch) return userProfile?.role === 'superadmin'; // Superadmin might see incidents for branches they don't have loaded yet
+      if (!branch) {
+          // For superadmin, they might see incidents from branches not yet loaded into the map if new incidents were created
+          // but the branch data hasn't been refreshed. For regular users, we must have branch info.
+          return userProfile?.role === 'superadmin';
+      }
       return (
         (filterCategory === 'all' || i.category === filterCategory) &&
         (filterStatus === 'all' || i.status === filterStatus) &&
@@ -115,24 +122,25 @@ export default function IncidentsPage() {
   }, [incidents, filterCategory, filterStatus, filterPriority, filterRegion, filterBrand, filterBranchId, branchMap, userProfile?.role]);
 
   const availableOptions = useMemo(() => {
-    const branchesInFilteredIncidents = new Map<string, Branch>();
-    filteredIncidents.forEach(incident => {
-        if (branchMap[incident.branchId]) {
-            branchesInFilteredIncidents.set(incident.branchId, branchMap[incident.branchId]);
-        }
+    // Start with all incidents, not filtered ones, to populate filters initially
+    const allBranchesInvolved = new Map<string, Branch>();
+    incidents.forEach(incident => {
+      if (branchMap[incident.branchId]) {
+        allBranchesInvolved.set(incident.branchId, branchMap[incident.branchId]);
+      }
     });
-
-    const branchesArray = Array.from(branchesInFilteredIncidents.values());
-
+  
+    const branchesArray = Array.from(allBranchesInvolved.values());
+  
     return {
-        categories: ['all', ...Array.from(new Set(filteredIncidents.map(i => i.category)))],
-        statuses: ['all', ...Array.from(new Set(filteredIncidents.map(i => i.status)))],
-        priorities: ['all', ...Array.from(new Set(filteredIncidents.map(i => i.priority)))],
-        regions: ['all', ...Array.from(new Set(branchesArray.map(b => b.region)))],
-        brands: ['all', ...Array.from(new Set(branchesArray.map(b => b.brand)))],
-        branches: ['all', ...branchesArray],
+      categories: ['all', ...Array.from(new Set(incidents.map(i => i.category)))],
+      statuses: ['all', ...Array.from(new Set(incidents.map(i => i.status)))],
+      priorities: ['all', ...Array.from(new Set(incidents.map(i => i.priority)))],
+      regions: ['all', ...Array.from(new Set(branchesArray.map(b => b.region)))],
+      brands: ['all', ...Array.from(new Set(branchesArray.map(b => b.brand)))],
+      branches: ['all', ...branchesArray],
     };
-  }, [filteredIncidents, branchMap]);
+  }, [incidents, branchMap]);
   
   const sortedAndFilteredIncidents = useMemo(() => {
     return filteredIncidents.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
