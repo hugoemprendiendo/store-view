@@ -16,8 +16,13 @@ service cloud.firestore {
     }
 
     function isSuperAdmin() {
+      // Check for the existence of the user document and then check the role property.
       return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
           && getUserData(request.auth.uid).role == 'superadmin';
+    }
+    
+    function isOwner(userId) {
+        return request.auth.uid == userId;
     }
 
     function isAssignedToBranch(branchId) {
@@ -35,7 +40,7 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow create: if isCreatingOwnProfile(userId);
-      allow read, update, list: if isSuperAdmin() || isCreatingOwnProfile(userId);
+      allow read, update, list: if isSuperAdmin() || isOwner(userId);
     }
 
     match /branches/{branchId} {
@@ -59,7 +64,7 @@ service cloud.firestore {
     }
 
      match /app_settings/{settingId} {
-        allow read: if isSignedIn() || isSuperAdmin();
+        allow read: if isSignedIn();
         allow write: if isSuperAdmin();
      }
   }
