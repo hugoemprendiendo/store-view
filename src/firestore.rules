@@ -61,7 +61,7 @@ service cloud.firestore {
     match /incidents/{incidentId} {
       // READ (get, list/query):
       // Allow if the user is signed in and is assigned to the branch of the document being read.
-      // This rule allows queries like `where('branchId', '==', X)`. Firestore checks this rule
+      // This rule allows queries like `where('branchId', 'in', ...)`. Firestore checks this rule
       // for every document the query tries to return.
       allow read: if isSignedIn() && isAssignedToBranch(resource.data.branchId);
 
