@@ -37,6 +37,7 @@ export function ManageUserBranchesDialog({ user, allBranches, children, onUserUp
   const { toast } = useToast();
 
   const handleCheckboxChange = (branchId: string, checked: boolean) => {
+    // Create a new copy to avoid direct state mutation
     const newSelection = { ...selectedBranches };
     if (checked) {
       newSelection[branchId] = true;
@@ -53,11 +54,19 @@ export function ManageUserBranchesDialog({ user, allBranches, children, onUserUp
     const userRef = doc(firestore, 'users', user.id);
 
     try {
-      await updateDoc(userRef, {
-        assignedBranches: selectedBranches
-      });
+      // Ensure we are saving a clean object, even if it's empty.
+      const dataToSave = { assignedBranches: selectedBranches || {} };
       
-      const updatedUser = { ...user, assignedBranches: selectedBranches };
+      await updateDoc(userRef, dataToSave);
+      
+      // We create a new user object with the updated data to pass to the parent.
+      // This is the source of truth now for the parent's state update.
+      const updatedUser: UserProfile = { 
+        ...user, 
+        assignedBranches: dataToSave.assignedBranches 
+      };
+      
+      // This call now updates the state in the parent component directly.
       onUserUpdate(updatedUser);
 
       toast({
@@ -79,6 +88,7 @@ export function ManageUserBranchesDialog({ user, allBranches, children, onUserUp
   
   const handleOpenChange = (open: boolean) => {
     if (open) {
+      // Always reset to the current user prop when opening
       setSelectedBranches(user.assignedBranches || {});
       setSearchTerm(''); // Reset search on open
     }
