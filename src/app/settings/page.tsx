@@ -48,7 +48,7 @@ export default function SettingsPage() {
         return;
       }
       
-      // 3. Only if the user is a superadmin, proceed to fetch settings.
+      // 3. Only if the user is a superadmin and firestore is available, proceed to fetch settings.
       if (!firestore) return;
       
       const settingsRef = doc(firestore, 'app_settings', 'incident_config');
