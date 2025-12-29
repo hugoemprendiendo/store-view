@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useFirestore } from '@/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const priorityTextMap: Record<string, string> = {
     Low: 'Baja',
@@ -33,23 +34,24 @@ export default function SettingsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // This effect now handles all loading, permission checking, and data fetching sequentially.
     const loadData = async () => {
-      // 1. Wait until both authentication is resolved and firestore is available.
+      // 1. Wait for auth and firestore to be ready.
       if (isProfileLoading || !firestore) {
-        return;
+        return; // Still loading dependencies, do nothing.
       }
 
-      // 2. Once auth is resolved, check the user's role.
+      // 2. Once ready, check the user's role.
       if (!userProfile || userProfile.role !== 'superadmin') {
         router.push('/');
-        return; // Redirect if not a superadmin. We don't need to fetch settings.
+        setIsLoading(false);
+        return; // Redirect if not a superadmin.
       }
       
       // 3. Only if the user is a superadmin, proceed to fetch settings.
+      setIsLoading(true);
       const settingsRef = doc(firestore, 'app_settings', 'incident_config');
-      try {
-        const settingsSnap = await getDoc(settingsRef);
+      
+      getDoc(settingsRef).then(settingsSnap => {
         if (settingsSnap.exists()) {
           setSettings(settingsSnap.data() as IncidentSettings);
         } else {
@@ -59,17 +61,16 @@ export default function SettingsPage() {
             description: 'El documento de configuración de la aplicación no existe.',
           });
         }
-      } catch (error) {
-         toast({
-            variant: 'destructive',
-            title: 'Error de Permisos',
-            description: 'No tienes permiso para ver la configuración.',
-          });
-          console.error("Error fetching settings:", error);
-      } finally {
-        // We are done loading, regardless of the outcome.
         setIsLoading(false);
-      }
+      }).catch(error => {
+          // Create and emit the detailed error for debugging
+          const permissionError = new FirestorePermissionError({
+            path: settingsRef.path,
+            operation: 'get',
+          });
+          // This will be caught by the Next.js error overlay
+          throw permissionError;
+      });
     };
     
     loadData();
