@@ -18,7 +18,8 @@ import { useFirestore } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import type { Branch, UserProfile } from '@/lib/types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Search } from 'lucide-react';
+import { Input } from '../ui/input';
 
 interface ManageUserBranchesDialogProps {
   user: UserProfile;
@@ -29,9 +30,9 @@ interface ManageUserBranchesDialogProps {
 
 export function ManageUserBranchesDialog({ user, allBranches, children, onUserUpdate }: ManageUserBranchesDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
-  // Selections are now a map: { [branchId]: true }
   const [selectedBranches, setSelectedBranches] = useState<Record<string, boolean>>(user.assignedBranches || {});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -52,7 +53,6 @@ export function ManageUserBranchesDialog({ user, allBranches, children, onUserUp
     const userRef = doc(firestore, 'users', user.id);
 
     try {
-      // Save the new map of branches
       await updateDoc(userRef, {
         assignedBranches: selectedBranches
       });
@@ -79,41 +79,60 @@ export function ManageUserBranchesDialog({ user, allBranches, children, onUserUp
   
   const handleOpenChange = (open: boolean) => {
     if (open) {
-      // Reset state when opening the dialog
       setSelectedBranches(user.assignedBranches || {});
+      setSearchTerm(''); // Reset search on open
     }
     setIsOpen(open);
   };
 
+  const filteredBranches = allBranches.filter(branch =>
+    branch.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    branch.region.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
         <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsOpen(true); }}>
             {children}
         </div>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-md">
             <DialogHeader>
-            <DialogTitle>Gestionar Sucursales para {user.name}</DialogTitle>
-            <DialogDescription>
-                Selecciona las sucursales a las que este usuario tendrá acceso.
-            </DialogDescription>
+                <DialogTitle>Gestionar Sucursales para {user.name}</DialogTitle>
+                <DialogDescription>
+                    Selecciona las sucursales a las que este usuario tendrá acceso.
+                </DialogDescription>
             </DialogHeader>
+            
+            <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                    type="search"
+                    placeholder="Buscar por nombre o región..."
+                    className="w-full pl-8"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+
             <ScrollArea className="h-72 w-full rounded-md border">
                 <div className="p-4 space-y-2">
-                {allBranches.map((branch) => (
+                {filteredBranches.length > 0 ? filteredBranches.map((branch) => (
                     <div key={branch.id} className="flex items-center space-x-2">
                         <Checkbox
                             id={`branch-${branch.id}`}
                             checked={!!selectedBranches[branch.id]}
                             onCheckedChange={(checked) => handleCheckboxChange(branch.id, !!checked)}
                         />
-                        <Label htmlFor={`branch-${branch.id}`} className="font-normal">
+                        <Label htmlFor={`branch-${branch.id}`} className="font-normal cursor-pointer">
                             {branch.name} <span className="text-muted-foreground">({branch.region})</span>
                         </Label>
                     </div>
-                ))}
+                )) : (
+                    <p className="text-center text-sm text-muted-foreground py-4">No se encontraron sucursales.</p>
+                )}
                 </div>
             </ScrollArea>
+
             <DialogFooter>
                 <DialogClose asChild>
                     <Button type="button" variant="secondary">

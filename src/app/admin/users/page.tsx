@@ -76,6 +76,8 @@ export default function UsersPage() {
     setUsers(currentUsers => 
         currentUsers.map(u => u.id === updatedUser.id ? updatedUser : u)
     );
+    // Refresh the page to reflect changes across the app without a full reload
+    router.refresh();
   };
 
   if (totalLoading) {
