@@ -89,18 +89,16 @@ export function IncidentReviewForm({ initialData, incidentSettings, onSuccess }:
     try {
         const incidentsCol = collection(firestore, 'incidents');
         
-        const incidentToCreate = {
+        const incidentToCreate: any = {
             ...data,
             photoHint: 'user uploaded',
             createdAt: new Date().toISOString(),
         };
 
-        // Remove any undefined fields before sending to Firestore
-        Object.keys(incidentToCreate).forEach(key => {
-            if (incidentToCreate[key] === undefined) {
-                delete incidentToCreate[key];
-            }
-        });
+        // Firestore cannot store 'undefined'. Clean up optional fields.
+        if (!incidentToCreate.description) delete incidentToCreate.description;
+        if (!incidentToCreate.photoUrl) delete incidentToCreate.photoUrl;
+        if (!incidentToCreate.audioTranscription) delete incidentToCreate.audioTranscription;
 
         const docRef = await addDoc(incidentsCol, incidentToCreate);
       
