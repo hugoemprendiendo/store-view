@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, Cpu, DollarSign, Info } from 'lucide-react';
-import { getAIAnalysis } from '@/app/actions';
+import { getAIAnalysis, revalidateIncidentPaths } from '@/app/actions';
 import { IncidentReviewForm } from '@/components/incidents/incident-form';
 import type { IncidentData } from '@/app/incidents/new/page';
 import type { AnalyzeIncidentReportOutput } from '@/ai/flows/analyze-incident-report';
@@ -40,44 +40,49 @@ export function IncidentFormStep2({ incidentData, onBack }: IncidentFormStep2Pro
                 description: 'La IA está generando el reporte de incidencia. Esto puede tardar un momento.',
             });
 
-            const settings = await getIncidentSettings(firestore);
-            setIncidentSettings(settings);
+            try {
+                const settings = await getIncidentSettings(firestore);
+                setIncidentSettings(settings);
 
-            const result = await getAIAnalysis({
-                photoDataUri: incidentData.photoDataUri,
-                audioTranscription: incidentData.audioTranscription,
-                textDescription: incidentData.textDescription,
-                incidentSettings: settings,
-            });
-
-            if (result.success && result.data) {
-                setAnalysisResult(result.data);
-
-                // Calculate cost
-                const audioInputTokens = incidentData.audioTokens || 0;
-                const audioOutputTokens = 0; // Transcription doesn't have output tokens in the same way.
-
-                const analysisInputTokens = result.data.inputTokens || 0;
-                const analysisOutputTokens = result.data.outputTokens || 0;
-
-                const totalCost = calculateCost(
-                    audioInputTokens + analysisInputTokens,
-                    audioOutputTokens + analysisOutputTokens
-                );
-                setEstimatedCost(totalCost);
-
-                toast({
-                    title: 'Análisis Completo',
-                    description: 'Las sugerencias de la IA han sido aplicadas al formulario.',
+                const result = await getAIAnalysis({
+                    photoDataUri: incidentData.photoDataUri,
+                    audioTranscription: incidentData.audioTranscription,
+                    textDescription: incidentData.textDescription,
+                    incidentSettings: settings,
                 });
-            } else {
-                toast({
+
+                if (result.success && result.data) {
+                    setAnalysisResult(result.data);
+
+                    // Calculate cost
+                    const audioInputTokens = incidentData.audioTokens || 0;
+                    const audioOutputTokens = 0; // Transcription doesn't have output tokens in the same way.
+
+                    const analysisInputTokens = result.data.inputTokens || 0;
+                    const analysisOutputTokens = result.data.outputTokens || 0;
+
+                    const totalCost = calculateCost(
+                        audioInputTokens + analysisInputTokens,
+                        audioOutputTokens + analysisOutputTokens
+                    );
+                    setEstimatedCost(totalCost);
+
+                    toast({
+                        title: 'Análisis Completo',
+                        description: 'Las sugerencias de la IA han sido aplicadas al formulario.',
+                    });
+                } else {
+                    throw new Error(result.error || 'Ocurrió un error desconocido durante el análisis.');
+                }
+            } catch (error: any) {
+                 toast({
                     variant: 'destructive',
                     title: 'Análisis Fallido',
-                    description: result.error || 'Ocurrió un error desconocido durante el análisis.',
+                    description: error.message,
                 });
+            } finally {
+                setIsAnalyzing(false);
             }
-            setIsAnalyzing(false);
         };
 
         analyze();
