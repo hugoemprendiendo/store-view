@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -38,24 +38,25 @@ export function ManageUserBranchesDialog({ user, allBranches, children, onUserUp
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  // Effect to initialize the selection state when the dialog opens or the user prop changes.
+  // This effect now correctly re-initializes the state whenever the dialog is opened
+  // or the specific user being managed changes.
   useEffect(() => {
     if (isOpen) {
-      // Sanitize the user's assignedBranches to ensure we're working with a clean map.
-      // This is the key fix to handle corrupted or legacy data structures.
       const initialSelection = sanitizeAssignedBranches(user.assignedBranches);
       setSelectedBranches(initialSelection);
     }
-  }, [isOpen, user.assignedBranches]);
+  }, [isOpen, user]);
 
   const handleCheckboxChange = (branchId: string, checked: boolean) => {
-    const newSelection = { ...selectedBranches };
-    if (checked) {
-      newSelection[branchId] = true;
-    } else {
-      delete newSelection[branchId];
-    }
-    setSelectedBranches(newSelection);
+    setSelectedBranches(prev => {
+        const newSelection = { ...prev };
+        if (checked) {
+            newSelection[branchId] = true;
+        } else {
+            delete newSelection[branchId];
+        }
+        return newSelection;
+    });
   };
 
   const handleSave = async () => {
@@ -64,19 +65,17 @@ export function ManageUserBranchesDialog({ user, allBranches, children, onUserUp
     const userRef = doc(firestore, 'users', user.id);
 
     try {
-      // Overwrite the assignedBranches field completely with the new, clean selection.
-      // Using { merge: true } ensures we don't wipe other user profile fields.
-      const dataToSave = { assignedBranches: selectedBranches };
-      await setDoc(userRef, dataToSave, { merge: true });
+      await setDoc(userRef, { assignedBranches: selectedBranches }, { merge: true });
       
-      // Notify the parent component to re-fetch data.
-      onUserUpdate();
-
       toast({
         title: 'Usuario Actualizado',
         description: `Se actualizaron las sucursales para ${user.name}.`,
       });
+      
       setIsOpen(false);
+      // Call the callback provided by the parent to trigger a data refresh.
+      onUserUpdate();
+
     } catch (error) {
       console.error("Error updating user branches:", error);
       toast({
@@ -91,7 +90,6 @@ export function ManageUserBranchesDialog({ user, allBranches, children, onUserUp
   
   const handleOpenChange = (open: boolean) => {
     if (open) {
-      // Reset search term when dialog is opened
       setSearchTerm('');
     }
     setIsOpen(open);

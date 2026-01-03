@@ -17,26 +17,31 @@ export default function DashboardPage() {
   // --- Real-time data fetching ---
   
   // 1. Get assigned branch IDs for the current user.
+  // This value is now derived directly from userProfile and will update when it does.
   const assignedBranchIds = useMemo(() => {
-    if (isProfileLoading || isSuperAdmin) return null;
+    if (isProfileLoading || !userProfile || isSuperAdmin) return null;
     return Object.keys(userProfile?.assignedBranches || {});
-  }, [isProfileLoading, isSuperAdmin, userProfile]);
+  }, [isProfileLoading, userProfile, isSuperAdmin]);
 
-  // 2. Build a query for the branches.
+  // 2. Build a query for the branches. This query now correctly depends on assignedBranchIds.
   const branchesQuery = useMemoFirebase(() => {
     if (!firestore || isProfileLoading) return null;
     if (isSuperAdmin) {
       return collection(firestore, 'branches');
     }
+    // If assignedBranchIds is null (loading) or empty, we return null to prevent a query.
     if (assignedBranchIds && assignedBranchIds.length > 0) {
-      // Note: 'in' query is limited to 30 items. We query only the first chunk for real-time.
       const chunk = assignedBranchIds.slice(0, 30);
       return query(collection(firestore, 'branches'), where('__name__', 'in', chunk));
     }
-    return null; // Return null if user has no assigned branches
+    // For non-superadmin users with no assigned branches yet, return null.
+    if (!isSuperAdmin && assignedBranchIds?.length === 0) {
+        return null;
+    }
+    return null; 
   }, [firestore, isProfileLoading, isSuperAdmin, assignedBranchIds]);
 
-  // 3. Build a query for the incidents related to those branches.
+  // 3. Build a query for the incidents related to those branches. This also depends on assignedBranchIds.
   const incidentsQuery = useMemoFirebase(() => {
     if (!firestore || isProfileLoading) return null;
     if (isSuperAdmin) {
@@ -50,6 +55,10 @@ export default function DashboardPage() {
         orderBy('createdAt', 'desc')
       );
     }
+    // For non-superadmin users with no assigned branches yet, return null.
+    if (!isSuperAdmin && assignedBranchIds?.length === 0) {
+        return null;
+    }
     return null;
   }, [firestore, isProfileLoading, isSuperAdmin, assignedBranchIds]);
 
@@ -59,7 +68,8 @@ export default function DashboardPage() {
 
   // --- Loading State ---
   
-  // The page is loading if the user profile or any of the active queries are loading.
+  // The page is loading if the user profile is loading OR if the queries are active and loading.
+  // If queries are null (because there are no branch IDs yet), their loading state is ignored.
   const isLoading = isProfileLoading || (branchesQuery !== null && isBranchesLoading) || (incidentsQuery !== null && isIncidentsLoading);
   
   if (isLoading) {
@@ -73,6 +83,20 @@ export default function DashboardPage() {
       </div>
     );
   }
+
+  // Handle the case where a regular user has 0 branches assigned.
+  if (!isSuperAdmin && (!branches || branches.length === 0)) {
+     return (
+        <div className="flex flex-col gap-6">
+          <Header title="Panel de Control" />
+          <div className="text-center py-16 text-muted-foreground">
+              <p className="text-lg">No tienes sucursales asignadas.</p>
+              <p>Por favor, contacta a un administrador para que te asigne a una o más sucursales.</p>
+          </div>
+        </div>
+    );
+  }
+
 
   return (
     <div className="flex flex-col gap-6">
