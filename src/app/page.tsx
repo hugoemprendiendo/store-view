@@ -6,7 +6,7 @@ import type { Branch, Incident } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useEffect, useState } from 'react';
-import { getBranchesByIds } from '@/lib/data';
+import { getBranchesByIds, getIncidentsForUser } from '@/lib/data';
 import { collection } from 'firebase/firestore';
 
 export default function DashboardPage() {
@@ -14,6 +14,7 @@ export default function DashboardPage() {
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
 
   const [userBranches, setUserBranches] = useState<Branch[]>([]);
+  const [userIncidents, setUserIncidents] = useState<Incident[]>([]);
   const [isLoadingUserData, setIsLoadingUserData] = useState(true);
 
   // Real-time queries for SUPERADMIN
@@ -30,9 +31,9 @@ export default function DashboardPage() {
   const { data: adminBranches, isLoading: isAdminBranchesLoading } = useCollection<Branch>(adminBranchesQuery);
   const { data: adminIncidents, isLoading: isAdminIncidentsLoading } = useCollection<Incident>(adminIncidentsQuery);
   
-  // One-time fetch for REGULAR USERS' branches
+  // Data fetching for REGULAR USERS
   useEffect(() => {
-    async function fetchUserBranches() {
+    async function fetchUserData() {
       if (isProfileLoading || !firestore || !userProfile || userProfile.role === 'superadmin') {
         if(!isProfileLoading) setIsLoadingUserData(false);
         return;
@@ -42,19 +43,25 @@ export default function DashboardPage() {
       try {
         const branchIds = Object.keys(userProfile.assignedBranches || {});
         if (branchIds.length > 0) {
-          const branchesData = await getBranchesByIds(firestore, branchIds);
+          const [branchesData, incidentsData] = await Promise.all([
+            getBranchesByIds(firestore, branchIds),
+            getIncidentsForUser(firestore, branchIds)
+          ]);
           setUserBranches(branchesData);
+          setUserIncidents(incidentsData);
         } else {
           setUserBranches([]);
+          setUserIncidents([]);
         }
       } catch (e) {
-        console.error("Error fetching user branches:", e);
+        console.error("Error fetching user branches or incidents:", e);
         setUserBranches([]);
+        setUserIncidents([]);
       } finally {
         setIsLoadingUserData(false);
       }
     }
-    fetchUserBranches();
+    fetchUserData();
   }, [firestore, userProfile, isProfileLoading]);
 
 
@@ -62,9 +69,7 @@ export default function DashboardPage() {
   
   // Determine final branches and incidents based on role
   const branches = isSuperAdmin ? (adminBranches || []) : userBranches;
-  // CRITICAL FIX: Regular users have an empty array for incidents on the dashboard
-  // to prevent any unauthorized queries.
-  const incidents = isSuperAdmin ? (adminIncidents || []) : [];
+  const incidents = isSuperAdmin ? (adminIncidents || []) : userIncidents;
   
   const isLoading = isProfileLoading || (isSuperAdmin ? (isAdminBranchesLoading || isAdminIncidentsLoading) : isLoadingUserData);
 

@@ -6,6 +6,25 @@ import { useFirestore, useUser } from '@/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import type { UserProfile } from '@/lib/types';
 
+// This function cleans up the assignedBranches field, ensuring it's a valid Record<string, boolean>.
+// It handles cases where the data might be corrupted with array-like keys ("0", "1", etc.).
+const sanitizeAssignedBranches = (branches: any): Record<string, boolean> => {
+    if (!branches || typeof branches !== 'object') {
+        return {};
+    }
+
+    const cleanedBranches: Record<string, boolean> = {};
+    for (const key in branches) {
+        // We only keep keys that have a value of `true` and are not numeric strings (like array indices).
+        // This effectively filters out old, corrupted array-like entries.
+        if (branches[key] === true && isNaN(parseInt(key))) {
+            cleanedBranches[key] = true;
+        }
+    }
+    return cleanedBranches;
+};
+
+
 export function useUserProfile() {
   const firestore = useFirestore();
   const { user: authUser, isUserLoading: isAuthLoading } = useUser();
@@ -32,7 +51,17 @@ export function useUserProfile() {
     const userDocRef = doc(firestore, 'users', authUser.uid);
     const unsubscribe = onSnapshot(userDocRef, (snapshot) => {
       if (snapshot.exists()) {
-        setUserProfile({ id: snapshot.id, ...snapshot.data() } as UserProfile);
+        const profileData = snapshot.data();
+        
+        // Sanitize the assignedBranches field before setting the state.
+        const sanitizedProfile: UserProfile = {
+            id: snapshot.id,
+            ...profileData,
+            assignedBranches: sanitizeAssignedBranches(profileData.assignedBranches),
+        } as UserProfile;
+
+        setUserProfile(sanitizedProfile);
+
       } else {
         setUserProfile(null);
       }
