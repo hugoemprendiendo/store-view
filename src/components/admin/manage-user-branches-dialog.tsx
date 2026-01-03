@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -20,12 +20,14 @@ import { useToast } from '@/hooks/use-toast';
 import type { Branch, UserProfile } from '@/lib/types';
 import { Loader2, Search } from 'lucide-react';
 import { Input } from '../ui/input';
+import { sanitizeAssignedBranches } from '@/hooks/useUserProfile';
+
 
 interface ManageUserBranchesDialogProps {
   user: UserProfile;
   allBranches: Branch[];
   children: React.ReactNode;
-  onUserUpdate: (updatedUser: UserProfile) => void;
+  onUserUpdate: () => void;
 }
 
 export function ManageUserBranchesDialog({ user, allBranches, children, onUserUpdate }: ManageUserBranchesDialogProps) {
@@ -35,6 +37,16 @@ export function ManageUserBranchesDialog({ user, allBranches, children, onUserUp
   const [searchTerm, setSearchTerm] = useState('');
   const firestore = useFirestore();
   const { toast } = useToast();
+
+  // Effect to initialize the selection state when the dialog opens or the user prop changes.
+  useEffect(() => {
+    if (isOpen) {
+      // Sanitize the user's assignedBranches to ensure we're working with a clean map.
+      // This is the key fix to handle corrupted or legacy data structures.
+      const initialSelection = sanitizeAssignedBranches(user.assignedBranches);
+      setSelectedBranches(initialSelection);
+    }
+  }, [isOpen, user.assignedBranches]);
 
   const handleCheckboxChange = (branchId: string, checked: boolean) => {
     const newSelection = { ...selectedBranches };
@@ -48,25 +60,17 @@ export function ManageUserBranchesDialog({ user, allBranches, children, onUserUp
 
   const handleSave = async () => {
     if (!firestore) return;
-
     setIsSubmitting(true);
     const userRef = doc(firestore, 'users', user.id);
 
     try {
-      // **LA CORRECCIÓN CLAVE:**
-      // Usamos setDoc con { merge: true } sobre el documento, pero la clave que actualizamos
-      // es `assignedBranches`, y la sobrescribimos por completo con el nuevo mapa.
-      // Esto elimina la estructura de array antigua y la reemplaza con el mapa limpio.
+      // Overwrite the assignedBranches field completely with the new, clean selection.
+      // Using { merge: true } ensures we don't wipe other user profile fields.
       const dataToSave = { assignedBranches: selectedBranches };
-      
       await setDoc(userRef, dataToSave, { merge: true });
       
-      const updatedUser: UserProfile = { 
-        ...user, 
-        ...dataToSave
-      };
-      
-      onUserUpdate(updatedUser);
+      // Notify the parent component to re-fetch data.
+      onUserUpdate();
 
       toast({
         title: 'Usuario Actualizado',
@@ -87,18 +91,7 @@ export function ManageUserBranchesDialog({ user, allBranches, children, onUserUp
   
   const handleOpenChange = (open: boolean) => {
     if (open) {
-      // Al abrir, filtramos el objeto `assignedBranches` para asegurarnos
-      // de que solo trabajamos con entradas válidas (booleano true), ignorando el array.
-      const validBranches: Record<string, boolean> = {};
-      if (user.assignedBranches && typeof user.assignedBranches === 'object') {
-          for (const key in user.assignedBranches) {
-              // Solo nos quedamos con las claves que son branch IDs y tienen valor `true`.
-              if (user.assignedBranches[key] === true) {
-                  validBranches[key] = true;
-              }
-          }
-      }
-      setSelectedBranches(validBranches);
+      // Reset search term when dialog is opened
       setSearchTerm('');
     }
     setIsOpen(open);

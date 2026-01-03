@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useFirestore } from '@/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import type { UserProfile, Branch } from '@/lib/types';
@@ -21,7 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ShieldAlert, Pencil } from 'lucide-react';
+import { Loader2, Pencil } from 'lucide-react';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useRouter } from 'next/navigation';
 import { getBranches } from '@/lib/data';
@@ -44,42 +44,40 @@ export default function UsersPage() {
   }, [isProfileLoading, userProfile, router]);
 
 
+  const fetchData = useCallback(async () => {
+    if (!firestore || userProfile?.role !== 'superadmin') return;
+    setIsLoading(true);
+    try {
+      const [usersSnapshot, branchesData] = await Promise.all([
+        getDocs(collection(firestore, 'users')),
+        getBranches(firestore),
+      ]);
+
+      const usersList = usersSnapshot.docs.map(
+        (doc) => ({ id: doc.id, ...doc.data() } as UserProfile)
+      );
+
+      setUsers(usersList);
+      setBranches(branchesData);
+    } catch (error) {
+      console.error("Error fetching users or branches: ", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [firestore, userProfile?.role]);
+
   useEffect(() => {
-      async function fetchData() {
-        if (!firestore || userProfile?.role !== 'superadmin') return;
-        setIsLoading(true);
-        try {
-          const [usersSnapshot, branchesData] = await Promise.all([
-            getDocs(collection(firestore, 'users')),
-            getBranches(firestore),
-          ]);
-
-          const usersList = usersSnapshot.docs.map(
-            (doc) => ({ id: doc.id, ...doc.data() } as UserProfile)
-          );
-
-          setUsers(usersList);
-          setBranches(branchesData);
-        } catch (error) {
-          console.error("Error fetching users or branches: ", error);
-        } finally {
-          setIsLoading(false);
-        }
-      }
-      
       if(!isProfileLoading){
         fetchData();
       }
-    
-  }, [firestore, isProfileLoading, userProfile]);
+  }, [isProfileLoading, fetchData]);
   
   const totalLoading = isLoading || isProfileLoading;
 
-  const handleUserUpdate = (updatedUser: UserProfile) => {
-    setUsers(currentUsers => 
-        currentUsers.map(u => u.id === updatedUser.id ? updatedUser : u)
-    );
-  };
+  const handleUserUpdate = useCallback(() => {
+    // Re-fetch all data to ensure consistency after an update.
+    fetchData();
+  }, [fetchData]);
 
   if (totalLoading || userProfile?.role !== 'superadmin') {
     return (

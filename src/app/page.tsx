@@ -5,74 +5,63 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import type { Branch, Incident } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { useEffect, useState } from 'react';
-import { getBranchesByIds, getIncidentsForUser } from '@/lib/data';
-import { collection } from 'firebase/firestore';
+import { useMemo } from 'react';
+import { collection, query, where, orderBy } from 'firebase/firestore';
 
 export default function DashboardPage() {
   const firestore = useFirestore();
   const { userProfile, isLoading: isProfileLoading } = useUserProfile();
 
-  const [userBranches, setUserBranches] = useState<Branch[]>([]);
-  const [userIncidents, setUserIncidents] = useState<Incident[]>([]);
-  const [isLoadingUserData, setIsLoadingUserData] = useState(true);
-
-  // Real-time queries for SUPERADMIN
-  const adminBranchesQuery = useMemoFirebase(() => {
-    if (!firestore || userProfile?.role !== 'superadmin') return null;
-    return collection(firestore, 'branches');
-  }, [firestore, userProfile?.role]);
-
-  const adminIncidentsQuery = useMemoFirebase(() => {
-    if (!firestore || userProfile?.role !== 'superadmin') return null;
-    return collection(firestore, 'incidents');
-  }, [firestore, userProfile?.role]);
-
-  const { data: adminBranches, isLoading: isAdminBranchesLoading } = useCollection<Branch>(adminBranchesQuery);
-  const { data: adminIncidents, isLoading: isAdminIncidentsLoading } = useCollection<Incident>(adminIncidentsQuery);
-  
-  // Data fetching for REGULAR USERS
-  useEffect(() => {
-    async function fetchUserData() {
-      if (isProfileLoading || !firestore || !userProfile || userProfile.role === 'superadmin') {
-        if(!isProfileLoading) setIsLoadingUserData(false);
-        return;
-      }
-      
-      setIsLoadingUserData(true);
-      try {
-        const branchIds = Object.keys(userProfile.assignedBranches || {});
-        if (branchIds.length > 0) {
-          const [branchesData, incidentsData] = await Promise.all([
-            getBranchesByIds(firestore, branchIds),
-            getIncidentsForUser(firestore, branchIds)
-          ]);
-          setUserBranches(branchesData);
-          setUserIncidents(incidentsData);
-        } else {
-          setUserBranches([]);
-          setUserIncidents([]);
-        }
-      } catch (e) {
-        console.error("Error fetching user branches or incidents:", e);
-        setUserBranches([]);
-        setUserIncidents([]);
-      } finally {
-        setIsLoadingUserData(false);
-      }
-    }
-    fetchUserData();
-  }, [firestore, userProfile, isProfileLoading]);
-
-
   const isSuperAdmin = userProfile?.role === 'superadmin';
-  
-  // Determine final branches and incidents based on role
-  const branches = isSuperAdmin ? (adminBranches || []) : userBranches;
-  const incidents = isSuperAdmin ? (adminIncidents || []) : userIncidents;
-  
-  const isLoading = isProfileLoading || (isSuperAdmin ? (isAdminBranchesLoading || isAdminIncidentsLoading) : isLoadingUserData);
 
+  // --- Real-time data fetching ---
+  
+  // 1. Get assigned branch IDs for the current user.
+  const assignedBranchIds = useMemo(() => {
+    if (isProfileLoading || isSuperAdmin) return null;
+    return Object.keys(userProfile?.assignedBranches || {});
+  }, [isProfileLoading, isSuperAdmin, userProfile]);
+
+  // 2. Build a query for the branches.
+  const branchesQuery = useMemoFirebase(() => {
+    if (!firestore || isProfileLoading) return null;
+    if (isSuperAdmin) {
+      return collection(firestore, 'branches');
+    }
+    if (assignedBranchIds && assignedBranchIds.length > 0) {
+      // Note: 'in' query is limited to 30 items. We query only the first chunk for real-time.
+      const chunk = assignedBranchIds.slice(0, 30);
+      return query(collection(firestore, 'branches'), where('__name__', 'in', chunk));
+    }
+    return null; // Return null if user has no assigned branches
+  }, [firestore, isProfileLoading, isSuperAdmin, assignedBranchIds]);
+
+  // 3. Build a query for the incidents related to those branches.
+  const incidentsQuery = useMemoFirebase(() => {
+    if (!firestore || isProfileLoading) return null;
+    if (isSuperAdmin) {
+      return query(collection(firestore, 'incidents'), orderBy('createdAt', 'desc'));
+    }
+    if (assignedBranchIds && assignedBranchIds.length > 0) {
+      const chunk = assignedBranchIds.slice(0, 30);
+      return query(
+        collection(firestore, 'incidents'), 
+        where('branchId', 'in', chunk),
+        orderBy('createdAt', 'desc')
+      );
+    }
+    return null;
+  }, [firestore, isProfileLoading, isSuperAdmin, assignedBranchIds]);
+
+  // 4. Fetch data using the real-time hooks.
+  const { data: branches, isLoading: isBranchesLoading } = useCollection<Branch>(branchesQuery);
+  const { data: incidents, isLoading: isIncidentsLoading } = useCollection<Incident>(incidentsQuery);
+
+  // --- Loading State ---
+  
+  // The page is loading if the user profile or any of the active queries are loading.
+  const isLoading = isProfileLoading || (branchesQuery !== null && isBranchesLoading) || (incidentsQuery !== null && isIncidentsLoading);
+  
   if (isLoading) {
     return (
       <div className="flex flex-col gap-6">
@@ -88,7 +77,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <Header title="Panel de Control" />
-      <DashboardClient branches={branches} incidents={incidents} />
+      <DashboardClient branches={branches || []} incidents={incidents || []} />
     </div>
   );
 }

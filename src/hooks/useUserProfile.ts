@@ -8,8 +8,8 @@ import type { UserProfile } from '@/lib/types';
 
 // This function cleans up the assignedBranches field, ensuring it's a valid Record<string, boolean>.
 // It handles cases where the data might be corrupted with array-like keys ("0", "1", etc.).
-const sanitizeAssignedBranches = (branches: any): Record<string, boolean> => {
-    if (!branches || typeof branches !== 'object') {
+export const sanitizeAssignedBranches = (branches: any): Record<string, boolean> => {
+    if (!branches || typeof branches !== 'object' || Array.isArray(branches)) {
         return {};
     }
 
@@ -17,7 +17,7 @@ const sanitizeAssignedBranches = (branches: any): Record<string, boolean> => {
     for (const key in branches) {
         // We only keep keys that have a value of `true` and are not numeric strings (like array indices).
         // This effectively filters out old, corrupted array-like entries.
-        if (branches[key] === true && isNaN(parseInt(key))) {
+        if (branches[key] === true && isNaN(parseInt(key, 10))) {
             cleanedBranches[key] = true;
         }
     }
