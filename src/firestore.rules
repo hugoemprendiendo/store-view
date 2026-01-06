@@ -4,26 +4,35 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // --- Funciones de Ayuda ---
+    
+    // Devuelve verdadero si el usuario ha iniciado sesión.
     function isSignedIn() {
       return request.auth != null;
     }
 
+    // Devuelve verdadero si el ID del usuario de la solicitud coincide con el ID del documento que se está accediendo.
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
     
+    // Obtiene el documento del perfil del usuario que realiza la solicitud.
     function getUserDoc() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
+    // Comprueba si el documento del perfil del usuario existe.
     function userDocExists() {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
+    // Devuelve verdadero si el usuario es un 'superadmin'.
     function isSuperAdmin() {
       return isSignedIn() && userDocExists() && getUserDoc().data.role == 'superadmin';
     }
     
+    // Devuelve verdadero si un usuario está asignado a una sucursal específica.
+    // Un superadmin siempre tiene acceso.
     function isAssignedToBranch(branchId) {
       if (isSuperAdmin()) {
         return true;
@@ -32,41 +41,57 @@ service cloud.firestore {
         return false;
       }
       let userDoc = getUserDoc();
+      // Verifica que el campo 'assignedBranches' exista y que contenga el branchId como una clave con valor 'true'.
       return 'assignedBranches' in userDoc.data && userDoc.data.assignedBranches[branchId] == true;
     }
     
+    // --- Reglas por Colección ---
+
+    // Colección de perfiles de usuario.
     match /users/{userId} {
       allow get: if isOwner(userId) || isSuperAdmin();
-      allow create, update: if isOwner(userId) || isSuperAdmin();
       allow list: if isSuperAdmin();
-      allow delete: if false; 
+      // Un usuario puede crear o actualizar su propio perfil. Un superadmin también puede.
+      allow create, update: if isOwner(userId) || isSuperAdmin();
+      allow delete: if false; // Nadie puede borrar perfiles de usuario directamente.
     }
 
+    // Colección de sucursales.
     match /branches/{branchId} {
-      // A user assigned to a branch can get it. Superadmins can list all.
+      // Permite leer una sucursal si el usuario está asignado a ella.
       allow get: if isAssignedToBranch(branchId);
+      // Solo los superadmins pueden listar todas las sucursales.
       allow list: if isSuperAdmin();
+      // Solo los superadmins pueden crear, actualizar o borrar sucursales.
       allow create, update, delete: if isSuperAdmin();
     }
 
+    // Colección de incidencias.
     match /incidents/{incidentId} {
-      // Allow a user to read (get, list) an incident if they are assigned to that incident's branch.
-      // This rule is key for `where('branchId', 'in', ...)` queries to work, as it's checked on each document.
+      // Permite leer (get, list) una incidencia si el usuario está asignado a la sucursal de esa incidencia.
+      // Esta regla es CLAVE para que funcionen las consultas `where('branchId', 'in', ...)` de la app,
+      // ya que Firestore la evalúa para CADA DOCUMENTO que la consulta intenta devolver.
       allow read: if isAssignedToBranch(resource.data.branchId);
 
-      // Allow write operations if assigned to the branch.
-      // `create` checks incoming data, `update`/`delete` checks existing data.
+      // Permite escribir una incidencia si el usuario está asignado a la sucursal correspondiente.
       allow create: if isAssignedToBranch(request.resource.data.branchId);
       allow update, delete: if isAssignedToBranch(resource.data.branchId);
     }
     
-    match /app_settings/{settingId} {
-        allow get: if isSignedIn();
+    // Colecciones de configuración.
+    match /incident_categories/{categoryId} {
+        allow read: if isSignedIn();
         allow write: if isSuperAdmin();
     }
+    
+    match /incident_priorities/{priorityId} {
+       allow read: if isSignedIn();
+       allow write: if isSuperAdmin();
+    }
 
-    match /test_docs/{docId} {
-        allow read, write: if true;
+    match /incident_statuses/{statusId} {
+        allow read: if isSignedIn();
+        allow write: if isSuperAdmin();
     }
   }
 }
