@@ -19,7 +19,8 @@ export default function DashboardPage() {
   // 1. Get assigned branch IDs for the current user.
   // This value is now derived directly from userProfile and will update when it does.
   const assignedBranchIds = useMemo(() => {
-    if (isProfileLoading || !userProfile || isSuperAdmin) return null;
+    if (isProfileLoading) return null; // Still loading, we don't know the IDs yet.
+    if (isSuperAdmin) return null; // Superadmin doesn't use this array.
     return Object.keys(userProfile?.assignedBranches || {});
   }, [isProfileLoading, userProfile, isSuperAdmin]);
 
@@ -29,16 +30,13 @@ export default function DashboardPage() {
     if (isSuperAdmin) {
       return collection(firestore, 'branches');
     }
-    // If assignedBranchIds is null (loading) or empty, we return null to prevent a query.
-    if (assignedBranchIds && assignedBranchIds.length > 0) {
+    // If assignedBranchIds is an array (even empty), we can proceed.
+    if (assignedBranchIds) {
+      // If the array is empty, this query will correctly return 0 branches.
       const chunk = assignedBranchIds.slice(0, 30);
-      return query(collection(firestore, 'branches'), where('__name__', 'in', chunk));
+      return query(collection(firestore, 'branches'), where('__name__', 'in', chunk.length > 0 ? chunk : ['non-existent-id']));
     }
-    // For non-superadmin users with no assigned branches yet, return null.
-    if (!isSuperAdmin && assignedBranchIds?.length === 0) {
-        return null;
-    }
-    return null; 
+    return null; // Don't query if we don't have the IDs array yet.
   }, [firestore, isProfileLoading, isSuperAdmin, assignedBranchIds]);
 
   // 3. Build a query for the incidents related to those branches. This also depends on assignedBranchIds.
@@ -47,19 +45,17 @@ export default function DashboardPage() {
     if (isSuperAdmin) {
       return query(collection(firestore, 'incidents'), orderBy('createdAt', 'desc'));
     }
-    if (assignedBranchIds && assignedBranchIds.length > 0) {
+    // If assignedBranchIds is an array (even empty), we can proceed.
+    if (assignedBranchIds) {
+       // If the array is empty, this query will correctly return 0 incidents.
       const chunk = assignedBranchIds.slice(0, 30);
       return query(
         collection(firestore, 'incidents'), 
-        where('branchId', 'in', chunk),
+        where('branchId', 'in', chunk.length > 0 ? chunk : ['non-existent-id']),
         orderBy('createdAt', 'desc')
       );
     }
-    // For non-superadmin users with no assigned branches yet, return null.
-    if (!isSuperAdmin && assignedBranchIds?.length === 0) {
-        return null;
-    }
-    return null;
+    return null; // Don't query if we don't have the IDs array yet.
   }, [firestore, isProfileLoading, isSuperAdmin, assignedBranchIds]);
 
   // 4. Fetch data using the real-time hooks.
@@ -68,8 +64,7 @@ export default function DashboardPage() {
 
   // --- Loading State ---
   
-  // The page is loading if the user profile is loading OR if the queries are active and loading.
-  // If queries are null (because there are no branch IDs yet), their loading state is ignored.
+  // The page is loading if the user profile is still loading, OR if the queries have been built and are actively loading data.
   const isLoading = isProfileLoading || (branchesQuery !== null && isBranchesLoading) || (incidentsQuery !== null && isIncidentsLoading);
   
   if (isLoading) {
@@ -85,6 +80,7 @@ export default function DashboardPage() {
   }
 
   // Handle the case where a regular user has 0 branches assigned.
+  // This check now runs *after* loading is complete.
   if (!isSuperAdmin && (!branches || branches.length === 0)) {
      return (
         <div className="flex flex-col gap-6">
