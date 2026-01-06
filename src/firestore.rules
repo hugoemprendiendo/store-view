@@ -51,8 +51,9 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isOwner(userId) || isSuperAdmin();
       allow list: if isSuperAdmin();
-      // Un usuario puede crear o actualizar su propio perfil. Un superadmin también puede.
-      allow create, update: if isOwner(userId) || isSuperAdmin();
+      // Un usuario puede crear su propio perfil. Un superadmin también puede actualizar cualquier perfil.
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isSuperAdmin();
       allow delete: if false; // Nadie puede borrar perfiles de usuario directamente.
     }
 
@@ -73,12 +74,12 @@ service cloud.firestore {
       // ya que Firestore la evalúa para CADA DOCUMENTO que la consulta intenta devolver.
       allow read: if isAssignedToBranch(resource.data.branchId);
 
-      // Permite escribir una incidencia si el usuario está asignado a la sucursal correspondiente.
+      // Permite escribir (crear/actualizar/borrar) una incidencia si el usuario está asignado a la sucursal correspondiente.
       allow create: if isAssignedToBranch(request.resource.data.branchId);
       allow update, delete: if isAssignedToBranch(resource.data.branchId);
     }
     
-    // Colecciones de configuración.
+    // Colecciones de configuración (categorías, prioridades, estados).
     match /incident_categories/{categoryId} {
         allow read: if isSignedIn();
         allow write: if isSuperAdmin();
