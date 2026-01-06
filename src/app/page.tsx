@@ -19,8 +19,7 @@ export default function DashboardPage() {
   // 1. Get assigned branch IDs for the current user.
   // This value is now derived directly from userProfile and will update when it does.
   const assignedBranchIds = useMemo(() => {
-    if (isProfileLoading) return null; // Still loading, we don't know the IDs yet.
-    if (isSuperAdmin) return null; // Superadmin doesn't use this array.
+    if (isProfileLoading || isSuperAdmin) return null; // Still loading or not needed for superadmin
     return Object.keys(userProfile?.assignedBranches || {});
   }, [isProfileLoading, userProfile, isSuperAdmin]);
 
@@ -32,7 +31,7 @@ export default function DashboardPage() {
     }
     // If assignedBranchIds is an array (even empty), we can proceed.
     if (assignedBranchIds) {
-      // If the array is empty, this query will correctly return 0 branches.
+      // If the array is empty, this query will correctly return 0 branches by querying a non-existent ID.
       const chunk = assignedBranchIds.slice(0, 30);
       return query(collection(firestore, 'branches'), where('__name__', 'in', chunk.length > 0 ? chunk : ['non-existent-id']));
     }
@@ -41,13 +40,13 @@ export default function DashboardPage() {
 
   // 3. Build a query for the incidents related to those branches. This also depends on assignedBranchIds.
   const incidentsQuery = useMemoFirebase(() => {
-    if (!firestore || isProfileLoading) return null;
+    if (!firestore || isProfileLoading) return null; // Wait for profile
     if (isSuperAdmin) {
       return query(collection(firestore, 'incidents'), orderBy('createdAt', 'desc'));
     }
-    // If assignedBranchIds is an array (even empty), we can proceed.
+    // For regular users, only build the query if we have the list of branch IDs.
     if (assignedBranchIds) {
-       // If the array is empty, this query will correctly return 0 incidents.
+       // If the array is empty, this query will correctly return 0 incidents by querying a non-existent ID.
       const chunk = assignedBranchIds.slice(0, 30);
       return query(
         collection(firestore, 'incidents'), 
@@ -55,7 +54,7 @@ export default function DashboardPage() {
         orderBy('createdAt', 'desc')
       );
     }
-    return null; // Don't query if we don't have the IDs array yet.
+    return null; // Don't query if we don't have the IDs array yet for the user.
   }, [firestore, isProfileLoading, isSuperAdmin, assignedBranchIds]);
 
   // 4. Fetch data using the real-time hooks.
