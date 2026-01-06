@@ -5,7 +5,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // --- Funciones de Ayuda ---
-    
+
     // Devuelve verdadero si el usuario ha iniciado sesión.
     function isSignedIn() {
       return request.auth != null;
@@ -15,45 +15,48 @@ service cloud.firestore {
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
-    
+
     // Obtiene el documento del perfil del usuario que realiza la solicitud.
-    function getUserDoc() {
+    function getUserProfile() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
     // Comprueba si el documento del perfil del usuario existe.
-    function userDocExists() {
+    function userProfileExists() {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
     // Devuelve verdadero si el usuario es un 'superadmin'.
     function isSuperAdmin() {
-      return isSignedIn() && userDocExists() && getUserDoc().data.role == 'superadmin';
+      // Para que un usuario sea superadmin debe existir su perfil y tener el rol asignado
+      return isSignedIn() && userProfileExists() && getUserProfile().data.role == 'superadmin';
     }
-    
+
     // Devuelve verdadero si un usuario está asignado a una sucursal específica.
     // Un superadmin siempre tiene acceso.
     function isAssignedToBranch(branchId) {
       if (isSuperAdmin()) {
         return true;
       }
-      if (!isSignedIn() || !userDocExists()) {
+      if (!isSignedIn() || !userProfileExists()) {
         return false;
       }
-      let userDoc = getUserDoc();
-      // Verifica que el campo 'assignedBranches' exista y que contenga el branchId como una clave con valor 'true'.
-      return 'assignedBranches' in userDoc.data && userDoc.data.assignedBranches[branchId] == true;
+      let userProfile = getUserProfile();
+      // Verifica que el campo 'assignedBranches' exista, sea un mapa, y contenga el branchId como una clave con valor 'true'.
+      return 'assignedBranches' in userProfile.data &&
+             userProfile.data.assignedBranches is map &&
+             branchId in userProfile.data.assignedBranches &&
+             userProfile.data.assignedBranches[branchId] == true;
     }
-    
+
     // --- Reglas por Colección ---
 
     // Colección de perfiles de usuario.
     match /users/{userId} {
-      allow get: if isOwner(userId) || isSuperAdmin();
+      allow get, update: if isOwner(userId) || isSuperAdmin();
       allow list: if isSuperAdmin();
-      // Un usuario puede crear su propio perfil. Un superadmin también puede actualizar cualquier perfil.
+      // Un usuario puede crear su propio perfil.
       allow create: if isOwner(userId);
-      allow update: if isOwner(userId) || isSuperAdmin();
       allow delete: if false; // Nadie puede borrar perfiles de usuario directamente.
     }
 
@@ -61,7 +64,7 @@ service cloud.firestore {
     match /branches/{branchId} {
       // Permite leer una sucursal si el usuario está asignado a ella.
       allow get: if isAssignedToBranch(branchId);
-      // Solo los superadmins pueden listar todas las sucursales.
+      // Solo los superadmins pueden listar todas las sucursales. La app no permite esto para usuarios normales.
       allow list: if isSuperAdmin();
       // Solo los superadmins pueden crear, actualizar o borrar sucursales.
       allow create, update, delete: if isSuperAdmin();
@@ -69,22 +72,29 @@ service cloud.firestore {
 
     // Colección de incidencias.
     match /incidents/{incidentId} {
-      // Permite leer (get, list) una incidencia si el usuario está asignado a la sucursal de esa incidencia.
-      // Esta regla es CLAVE para que funcionen las consultas `where('branchId', 'in', ...)` de la app,
+      // PERMITE LA LECTURA (get, list) si se cumple una de dos condiciones:
+      // 1. El usuario es un superadmin.
+      // 2. El usuario está asignado a la sucursal de la incidencia (resource.data.branchId).
+      // Esta regla es CLAVE para que las consultas `where('branchId', 'in', ...)` de la app funcionen,
       // ya que Firestore la evalúa para CADA DOCUMENTO que la consulta intenta devolver.
-      allow read: if isAssignedToBranch(resource.data.branchId);
+      allow read: if isSuperAdmin() || isAssignedToBranch(resource.data.branchId);
 
-      // Permite escribir (crear/actualizar/borrar) una incidencia si el usuario está asignado a la sucursal correspondiente.
-      allow create: if isAssignedToBranch(request.resource.data.branchId);
-      allow update, delete: if isAssignedToBranch(resource.data.branchId);
+      // Permite la ESCRITURA (crear/actualizar/borrar) si se cumple una de dos condiciones:
+      // 1. El usuario es un superadmin.
+      // 2. Para crear, el usuario debe estar asignado a la sucursal del nuevo incidente.
+      // 3. Para actualizar o borrar, el usuario debe estar asignado a la sucursal del incidente existente.
+      allow write: if isSuperAdmin() ||
+                     (request.method == 'create' && isAssignedToBranch(request.resource.data.branchId)) ||
+                     (request.method == 'update' && isAssignedToBranch(resource.data.branchId)) ||
+                     (request.method == 'delete' && isAssignedToBranch(resource.data.branchId));
     }
-    
+
     // Colecciones de configuración (categorías, prioridades, estados).
     match /incident_categories/{categoryId} {
         allow read: if isSignedIn();
         allow write: if isSuperAdmin();
     }
-    
+
     match /incident_priorities/{priorityId} {
        allow read: if isSignedIn();
        allow write: if isSuperAdmin();

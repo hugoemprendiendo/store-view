@@ -15,40 +15,40 @@ export default function DashboardPage() {
   const isSuperAdmin = userProfile?.role === 'superadmin';
 
   // --- Real-time data fetching ---
-  
+
   // 1. Get assigned branch IDs for the current user.
   // This value is now derived directly from userProfile and will update when it does.
   const assignedBranchIds = useMemo(() => {
     if (isProfileLoading || !userProfile) return null; // Return null if still loading or no profile
-    if (isSuperAdmin) return []; // Superadmin doesn't need this for querying
+    if (isSuperAdmin) return []; // Superadmin doesn't use this for querying all branches/incidents
     return Object.keys(userProfile.assignedBranches || {});
   }, [isProfileLoading, userProfile, isSuperAdmin]);
 
   // 2. Build a query for the branches. This query now correctly depends on assignedBranchIds.
   const branchesQuery = useMemoFirebase(() => {
-    // Don't query until profile is loaded
-    if (isProfileLoading || !firestore) return null; 
-    
+    // Don't query until profile is loaded and we have the branch IDs
+    if (isProfileLoading || !firestore) return null;
+
     if (isSuperAdmin) {
       return collection(firestore, 'branches');
     }
-    
+
     // For regular users, wait until assignedBranchIds array is available.
     if (assignedBranchIds) {
       // If the user has no assigned branches, query for a non-existent ID.
-      // This is safe and returns an empty result as intended.
+      // This is safe and returns an empty result as intended, avoiding permission errors.
       const chunk = assignedBranchIds.slice(0, 30);
       return query(collection(firestore, 'branches'), where('__name__', 'in', chunk.length > 0 ? chunk : ['non-existent-id']));
     }
-    
+
     // Return null if we are a regular user and don't have the IDs yet.
-    return null; 
+    return null;
   }, [firestore, isProfileLoading, isSuperAdmin, assignedBranchIds]);
 
   // 3. Build a query for the incidents related to those branches. This also depends on assignedBranchIds.
   const incidentsQuery = useMemoFirebase(() => {
-    // Don't query until profile is loaded
-    if (isProfileLoading || !firestore) return null; 
+    // Don't query until profile is loaded and we have the branch IDs
+    if (isProfileLoading || !firestore) return null;
 
     if (isSuperAdmin) {
       return query(collection(firestore, 'incidents'), orderBy('createdAt', 'desc'));
@@ -57,15 +57,16 @@ export default function DashboardPage() {
     // For regular users, wait until assignedBranchIds array is available.
     if (assignedBranchIds) {
       const chunk = assignedBranchIds.slice(0, 30);
+      // Query incidents only for the assigned branches. If no branches, query for a non-existent ID.
       return query(
-        collection(firestore, 'incidents'), 
+        collection(firestore, 'incidents'),
         where('branchId', 'in', chunk.length > 0 ? chunk : ['non-existent-id']),
         orderBy('createdAt', 'desc')
       );
     }
-    
+
     // Return null if we are a regular user and don't have the IDs yet.
-    return null; 
+    return null;
   }, [firestore, isProfileLoading, isSuperAdmin, assignedBranchIds]);
 
   // 4. Fetch data using the real-time hooks.
@@ -73,10 +74,10 @@ export default function DashboardPage() {
   const { data: incidents, isLoading: isIncidentsLoading } = useCollection<Incident>(incidentsQuery);
 
   // --- Loading State ---
-  
+
   // The page is loading if the user profile is still loading, OR if the queries have been built and are actively loading data.
   const isLoading = isProfileLoading || (branchesQuery !== null && isBranchesLoading) || (incidentsQuery !== null && isIncidentsLoading);
-  
+
   if (isLoading) {
     return (
       <div className="flex flex-col gap-6">
